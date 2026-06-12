@@ -1,5 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Search, Bookmark, Clapperboard } from "lucide-react";
+import { Search, Bookmark, Rabbit } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function Navbar() {
@@ -31,8 +31,8 @@ export function Navbar() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-8">
         <Link to="/" className="flex items-center gap-2">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary text-primary-foreground shadow-lift">
-            <Clapperboard className="h-4 w-4" />
+          <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lift ring-2 ring-primary/15">
+            <Rabbit className="h-5 w-5" strokeWidth={2.4} />
           </div>
           <span className="text-lg font-black tracking-tight">
             K<span className="text-primary">·</span>Scene

@@ -50,8 +50,12 @@ export const getRecentKDrama = () =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, sort_by: "first_air_date.desc", "first_air_date.lte": new Date().toISOString().slice(0, 10) })
     .then((d) => d.results);
 
-export const getByGenre = (genreId: number) =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, with_genres: genreId }).then((d) => d.results);
+export const getByGenre = (genreId: number, page = 1) =>
+  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, with_genres: genreId, page }).then((d) => d.results);
+
+export const getByPage = (page: number) =>
+  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) => d.results);
+
 
 export const GENRES = {
   romance: 10749,
