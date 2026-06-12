@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { ExternalLink, Clock, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { ExternalLink, Clock, ChevronDown, ChevronUp, RefreshCw, Play } from "lucide-react";
 
 export const Route = createFileRoute("/news")({
   head: () => ({ meta: [{ title: "K-Drama News — K·Scene" }] }),
@@ -13,36 +12,34 @@ type Article = {
   link: string;
   pubDate: string;
   description: string;
+  fullContent?: string;
   image?: string;
+  videoEmbed?: string;
   source: string;
+  sourceColor: string;
 };
 
-// We use rss2json which converts RSS → JSON without CORS issues
-const RSS_SOURCES = [
-  {
-    name: "Soompi",
-    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.soompi.com%2Ffeed",
-    color: "#e8503a",
-  },
-  {
-    name: "Koreaboo",
-    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.koreaboo.com%2Ffeed%2F",
-    color: "#7c3aed",
-  },
-  {
-    name: "Allkpop",
-    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.allkpop.com%2Ffeed",
-    color: "#0891b2",
-  },
+const SOURCES = [
+  { name: "Soompi", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.soompi.com%2Ffeed&count=20", color: "#e8503a" },
+  { name: "Koreaboo", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.koreaboo.com%2Ffeed%2F&count=20", color: "#7c3aed" },
+  { name: "Allkpop", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.allkpop.com%2Ffeed&count=20", color: "#0891b2" },
+  { name: "Drama Beans", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.dramabeans.com%2Ffeed%2F&count=20", color: "#059669" },
+  { name: "KDrama Stars", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkdramastars.com%2Ffeed%2F&count=20", color: "#d97706" },
+  { name: "MyDramaList", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fmydramalist.com%2Ffeed%2Fnews&count=20", color: "#db2777" },
 ];
 
 function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").trim();
+  return html.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
 }
 
 function extractImage(html: string): string | undefined {
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match?.[1];
+  const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return m?.[1];
+}
+
+function extractYouTube(html: string): string | undefined {
+  const m = html.match(/(?:youtube\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? `https://www.youtube.com/embed/${m[1]}?rel=0` : undefined;
 }
 
 function timeAgo(dateStr: string) {
@@ -55,66 +52,103 @@ function timeAgo(dateStr: string) {
   return new Date(dateStr).toLocaleDateString();
 }
 
-async function fetchFeed(url: string, sourceName: string): Promise<Article[]> {
-  const res = await fetch(url);
-  const data = await res.json();
-  if (!data.items) return [];
-  return data.items.slice(0, 15).map((item: any) => ({
-    title: stripHtml(item.title || ""),
-    link: item.link || item.guid || "#",
-    pubDate: item.pubDate || "",
-    description: stripHtml(item.description || item.content || "").slice(0, 160),
-    image: item.enclosure?.link || item.thumbnail || extractImage(item.description || item.content || ""),
-    source: sourceName,
-  }));
+async function fetchSource(src: (typeof SOURCES)[number]): Promise<Article[]> {
+  try {
+    const res = await fetch(src.url, { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
+    if (!data.items) return [];
+    return data.items.map((item: any) => {
+      const content = item.content || item.description || "";
+      return {
+        title: stripHtml(item.title || ""),
+        link: item.link || "#",
+        pubDate: item.pubDate || "",
+        description: stripHtml(content).slice(0, 280),
+        fullContent: stripHtml(content),
+        image: item.enclosure?.link || item.thumbnail || extractImage(content),
+        videoEmbed: extractYouTube(content),
+        source: src.name,
+        sourceColor: src.color,
+      };
+    });
+  } catch { return []; }
 }
 
+const PAGE_SIZE = 12;
+
 function NewsPage() {
-  const [activeSource, setActiveSource] = useState<string>("All");
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const loaderRef = useRef<HTMLDivElement>(null);
 
-  const queries = RSS_SOURCES.map(src =>
-    useQuery({
-      queryKey: ["news", src.name],
-      queryFn: () => fetchFeed(src.url, src.name),
-      staleTime: 1000 * 60 * 10, // 10 min
-    })
-  );
+  // Load all sources
+  useEffect(() => {
+    setLoading(true);
+    Promise.all(SOURCES.map(fetchSource)).then(results => {
+      const all = results.flat().sort((a, b) =>
+        new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
+      );
+      setArticles(all);
+      setLoading(false);
+    });
+  }, []);
 
-  const allArticles: Article[] = queries
-    .flatMap((q, i) => q.data?.map(a => ({ ...a, source: RSS_SOURCES[i].name })) || [])
-    .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+  // Infinite scroll via IntersectionObserver
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        setVisibleCount(prev => prev + PAGE_SIZE);
+      }
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [articles.length]);
 
-  const isLoading = queries.some(q => q.isLoading);
-  const isRefetching = queries.some(q => q.isRefetching);
+  const filtered = activeFilter === "All"
+    ? articles
+    : articles.filter(a => a.source === activeFilter);
 
-  const filtered = activeSource === "All" ? allArticles : allArticles.filter(a => a.source === activeSource);
+  const visible = filtered.slice(0, visibleCount);
 
-  const [featured, ...rest] = filtered;
+  const toggleExpand = (link: string) => {
+    setExpanded(prev => {
+      const n = new Set(prev);
+      n.has(link) ? n.delete(link) : n.add(link);
+      return n;
+    });
+  };
+
+  const [featured, ...rest] = visible;
 
   return (
-    <div className="min-h-screen pb-6">
+    <div className="min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur px-4 py-3">
-        <div className="mx-auto max-w-2xl">
+      <div className="sticky top-0 z-20 bg-white border-b shadow-sm">
+        <div className="max-w-2xl mx-auto px-4 pt-4 pb-3">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-xl font-black">K·News</h1>
-              <p className="text-xs text-muted-foreground">Latest K-drama & K-pop headlines</p>
+              <h1 className="text-xl font-black text-gray-900">K·News</h1>
+              <p className="text-xs text-gray-500">{articles.length} articles from {SOURCES.length} sources</p>
             </div>
-            <RefreshCw className={`h-4 w-4 text-muted-foreground ${isRefetching ? "animate-spin" : ""}`} />
+            {loading && <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />}
           </div>
-
-          {/* Source filter pills */}
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {["All", ...RSS_SOURCES.map(s => s.name)].map(name => (
+            {["All", ...SOURCES.map(s => s.name)].map(name => (
               <button
                 key={name}
-                onClick={() => setActiveSource(name)}
-                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${
-                  activeSource === name
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:text-foreground"
-                }`}
+                onClick={() => { setActiveFilter(name); setVisibleCount(PAGE_SIZE); }}
+                className="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition"
+                style={{
+                  backgroundColor: activeFilter === name
+                    ? (SOURCES.find(s => s.name === name)?.color || "#e8503a")
+                    : "#f3f4f6",
+                  color: activeFilter === name ? "#fff" : "#6b7280",
+                }}
               >
                 {name}
               </button>
@@ -123,113 +157,139 @@ function NewsPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-2xl px-4 pt-5">
-        {isLoading ? (
-          <div className="space-y-4">
-            <div className="aspect-video w-full animate-pulse rounded-3xl bg-muted" />
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex gap-3">
-                <div className="h-20 w-24 shrink-0 animate-pulse rounded-2xl bg-muted" />
-                <div className="flex-1 space-y-2 py-1">
-                  <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
-                  <div className="h-3 w-full animate-pulse rounded bg-muted" />
-                  <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
+      <div className="max-w-2xl mx-auto px-4 pt-5 space-y-4">
+        {loading && visible.length === 0 ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-2xl bg-white p-4 shadow-card">
+              <div className="h-40 w-full animate-pulse rounded-xl bg-gray-200 mb-3" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200 mb-2" />
+              <div className="h-3 w-full animate-pulse rounded bg-gray-100" />
+            </div>
+          ))
+        ) : visible.length === 0 ? (
           <div className="mt-20 text-center">
             <p className="text-4xl">📰</p>
-            <p className="mt-3 font-semibold">No articles found</p>
-            <p className="mt-1 text-sm text-muted-foreground">Check back later for the latest K-drama news</p>
+            <p className="mt-3 font-semibold text-gray-700">No articles found</p>
           </div>
         ) : (
-          <>
-            {/* Featured article */}
-            {featured && (
-              <a
-                href={featured.link}
-                target="_blank"
-                rel="noreferrer"
-                className="group mb-6 block overflow-hidden rounded-3xl border bg-card shadow-card transition hover:-translate-y-1 hover:shadow-lift"
-              >
-                {featured.image && (
-                  <div className="relative aspect-video w-full overflow-hidden bg-muted">
-                    <img src={featured.image} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <SourceBadge name={featured.source} />
-                      <h2 className="mt-2 text-base font-black text-white leading-snug line-clamp-3">
-                        {featured.title}
-                      </h2>
-                      <p className="mt-1 flex items-center gap-1 text-xs text-white/60">
-                        <Clock className="h-3 w-3" /> {timeAgo(featured.pubDate)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {!featured.image && (
-                  <div className="p-5">
-                    <SourceBadge name={featured.source} />
-                    <h2 className="mt-2 text-base font-black leading-snug">{featured.title}</h2>
-                    <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{featured.description}</p>
-                    <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" /> {timeAgo(featured.pubDate)}
-                    </p>
-                  </div>
-                )}
-              </a>
-            )}
-
-            {/* Article list */}
-            <div className="space-y-3">
-              {rest.map((article, i) => (
-                <a
-                  key={i}
-                  href={article.link}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="group flex gap-3 overflow-hidden rounded-2xl border bg-card p-3 transition hover:border-primary hover:shadow-card"
-                >
-                  {article.image && (
-                    <div className="h-20 w-24 shrink-0 overflow-hidden rounded-xl bg-muted">
-                      <img src={article.image} alt="" loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <h3 className="line-clamp-2 text-sm font-bold leading-snug group-hover:text-primary transition">
-                        {article.title}
-                      </h3>
-                      <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{article.description}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <SourceBadge name={article.source} small />
-                      <span className="text-[10px] text-muted-foreground">{timeAgo(article.pubDate)}</span>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
-
-            <p className="mt-8 text-center text-xs text-muted-foreground">
-              Content sourced from Soompi, Koreaboo & Allkpop via RSS
-            </p>
-          </>
+          visible.map((article, i) => (
+            <ArticleCard
+              key={article.link + i}
+              article={article}
+              featured={i === 0 && activeFilter === "All"}
+              expanded={expanded.has(article.link)}
+              onToggle={() => toggleExpand(article.link)}
+            />
+          ))
         )}
+
+        {/* Infinite scroll trigger */}
+        <div ref={loaderRef} className="h-16 flex items-center justify-center">
+          {visibleCount < filtered.length && (
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function SourceBadge({ name, small }: { name: string; small?: boolean }) {
-  const src = RSS_SOURCES.find(s => s.name === name);
+function ArticleCard({ article, featured, expanded, onToggle }: {
+  article: Article;
+  featured?: boolean;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const [videoPlaying, setVideoPlaying] = useState(false);
+
+  return (
+    <div className={`overflow-hidden rounded-2xl bg-white shadow-card ${featured ? "ring-2 ring-primary/30" : ""}`}>
+      {/* Media */}
+      {article.videoEmbed && videoPlaying ? (
+        <div className="aspect-video w-full">
+          <iframe
+            src={article.videoEmbed + "&autoplay=1"}
+            className="h-full w-full border-0"
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            title={article.title}
+          />
+        </div>
+      ) : article.image ? (
+        <div className="relative aspect-video w-full overflow-hidden bg-gray-100">
+          <img
+            src={article.image}
+            alt={article.title}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          {article.videoEmbed && (
+            <button
+              onClick={() => setVideoPlaying(true)}
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              <div className="grid h-14 w-14 place-items-center rounded-full bg-red-600/90 shadow-hero backdrop-blur">
+                <Play className="h-6 w-6 fill-white text-white ml-0.5" />
+              </div>
+            </button>
+          )}
+          {featured && (
+            <div className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-1 text-[10px] font-black text-white">
+              TOP STORY
+            </div>
+          )}
+          <div className="absolute bottom-3 left-3">
+            <SourceChip name={article.source} color={article.sourceColor} />
+          </div>
+        </div>
+      ) : null}
+
+      {/* Content */}
+      <div className="p-4">
+        {!article.image && <SourceChip name={article.source} color={article.sourceColor} />}
+        <h2 className={`font-bold text-gray-900 leading-snug ${featured ? "text-lg mt-2" : "text-sm mt-1"}`}>
+          {article.title}
+        </h2>
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
+          <Clock className="h-3 w-3" /> {timeAgo(article.pubDate)}
+        </p>
+
+        {/* Expandable content */}
+        <div className={`mt-2 overflow-hidden transition-all text-sm text-gray-600 leading-relaxed ${expanded ? "" : "line-clamp-3"}`}>
+          {article.fullContent || article.description}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between">
+          <button
+            onClick={onToggle}
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            {expanded ? (
+              <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
+            ) : (
+              <><ChevronDown className="h-3.5 w-3.5" /> Read more</>
+            )}
+          </button>
+          <a
+            href={article.link}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition"
+          >
+            <ExternalLink className="h-3 w-3" /> Source
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SourceChip({ name, color }: { name: string; color: string }) {
   return (
     <span
-      className={`inline-block rounded-full font-bold ${small ? "px-2 py-0.5 text-[9px]" : "px-2.5 py-1 text-[11px]"}`}
-      style={{ backgroundColor: `${src?.color}25`, color: src?.color }}
+      className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold"
+      style={{ backgroundColor: `${color}20`, color }}
     >
       {name}
     </span>
