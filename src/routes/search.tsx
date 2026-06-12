@@ -5,10 +5,8 @@ import { z } from "zod";
 import { searchMulti } from "@/lib/tmdb";
 import { PosterCard, PosterSkeleton } from "@/components/PosterCard";
 
-const searchSchema = z.object({ q: z.string().optional().default("") });
-
 export const Route = createFileRoute("/search")({
-  validateSearch: searchSchema,
+  validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : "" }),
   head: () => ({ meta: [{ title: "Search — K·Scene" }] }),
   component: SearchPage,
 });
