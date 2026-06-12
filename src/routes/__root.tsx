@@ -10,7 +10,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { Navbar } from "../components/Navbar";
+import { BottomNav } from "../components/BottomNav";
+import { AuthProvider } from "../lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -33,7 +34,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold">This page didn't load</h1>
+        <h1 className="text-xl font-semibold">This page did not load</h1>
         <p className="mt-2 text-sm text-muted-foreground">Something went wrong on our end.</p>
         <div className="mt-6 flex justify-center gap-2">
           <button onClick={() => { router.invalidate(); reset(); }} className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
@@ -50,13 +51,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "K·Scene — Premium K-Drama Streaming" },
       { name: "description", content: "Discover, browse and watch the best Korean dramas in a clean, cinematic experience." },
       { property: "og:title", content: "K·Scene — Premium K-Drama Streaming" },
       { property: "og:description", content: "Discover, browse and watch the best Korean dramas." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#0e0e18" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -74,7 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head><HeadContent /></head>
       <body>{children}<Scripts /></body>
     </html>
@@ -85,16 +88,12 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <Navbar />
-      <main className="min-h-screen pt-16">
-        <Outlet />
-      </main>
-      <footer className="border-t bg-surface">
-        <div className="mx-auto max-w-7xl px-4 py-10 text-center text-xs text-muted-foreground sm:px-8">
-          <p className="font-semibold text-foreground">K·Scene</p>
-          <p className="mt-1">Built for K-drama lovers. 🐰</p>
-        </div>
-      </footer>
+      <AuthProvider>
+        <main className="min-h-screen pb-20">
+          <Outlet />
+        </main>
+        <BottomNav />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
