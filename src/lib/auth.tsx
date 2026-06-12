@@ -1,9 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  auth,
+  firebaseSignUp,
+  firebaseSignIn,
+  firebaseSignOut,
+  onAuthStateChanged,
+  type User,
+} from "./firebase";
 
 type AuthCtx = {
-  session: Session | null;
   user: User | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
@@ -14,37 +19,39 @@ type AuthCtx = {
 const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-    return () => subscription.unsubscribe();
+    return unsub;
   }, []);
 
   const signUp = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { data: { full_name: name } },
-    });
-    return { error: error?.message ?? null };
+    try {
+      await firebaseSignUp(email, password, name);
+      return { error: null };
+    } catch (e: any) {
+      return { error: e.message?.replace("Firebase: ", "").replace(/\(auth\/.*?\)\.?/, "").trim() || "Sign up failed" };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    try {
+      await firebaseSignIn(email, password);
+      return { error: null };
+    } catch (e: any) {
+      return { error: e.message?.replace("Firebase: ", "").replace(/\(auth\/.*?\)\.?/, "").trim() || "Login failed" };
+    }
   };
 
-  const signOut = async () => { await supabase.auth.signOut(); };
+  const signOut = async () => { await firebaseSignOut(); };
 
   return (
-    <Ctx.Provider value={{ session, user: session?.user ?? null, loading, signUp, signIn, signOut }}>
+    <Ctx.Provider value={{ user, loading, signUp, signIn, signOut }}>
       {children}
     </Ctx.Provider>
   );
