@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { z } from "zod";
 import { searchMulti } from "@/lib/tmdb";
 import { PosterCard, PosterSkeleton } from "@/components/PosterCard";
 
