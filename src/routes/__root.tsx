@@ -92,7 +92,7 @@ function RootComponent() {
       <footer className="border-t bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-10 text-center text-xs text-muted-foreground sm:px-8">
           <p className="font-semibold text-foreground">K·Scene</p>
-          <p className="mt-1">Powered by TMDB. Built for K-drama lovers.</p>
+          <p className="mt-1">Built for K-drama lovers. 🐰</p>
         </div>
       </footer>
     </QueryClientProvider>
