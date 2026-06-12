@@ -1,29 +1,40 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Hero } from "@/components/Hero";
+import { Row } from "@/components/Row";
+import {
+  getTrendingKDrama,
+  getPopularKDrama,
+  getTopRatedKDrama,
+  getRecentKDrama,
+  getByGenre,
+  getHistoricalKDrama,
+  GENRES,
+} from "@/lib/tmdb";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Your App" },
-      { name: "description", content: "Replace this with a one-sentence description of your app." },
-      { property: "og:title", content: "Your App" },
-      { property: "og:description", content: "Replace this with a one-sentence description of your app." },
+      { title: "K·Scene — Discover Korean Dramas" },
+      { name: "description", content: "Trending, popular and top-rated K-dramas in one cinematic place." },
     ],
   }),
-  component: Index,
+  component: Home,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Home() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="pb-16">
+      <Hero />
+      <div className="space-y-10 pt-8">
+        <Row title="Trending Now" emoji="🔥" queryKey={["row", "trending"]} queryFn={getTrendingKDrama} />
+        <Row title="Popular K-Dramas" queryKey={["row", "popular"]} queryFn={getPopularKDrama} />
+        <Row title="Top Rated" emoji="⭐" queryKey={["row", "top"]} queryFn={getTopRatedKDrama} />
+        <Row title="Recently Added" queryKey={["row", "recent"]} queryFn={getRecentKDrama} />
+        <Row title="Romance" emoji="❤️" queryKey={["row", "romance"]} queryFn={() => getByGenre(GENRES.romance)} />
+        <Row title="Action" emoji="🔥" queryKey={["row", "action"]} queryFn={() => getByGenre(GENRES.action)} />
+        <Row title="Historical" emoji="🏯" queryKey={["row", "historical"]} queryFn={getHistoricalKDrama} />
+        <Row title="Comedy" emoji="😂" queryKey={["row", "comedy"]} queryFn={() => getByGenre(GENRES.comedy)} />
+      </div>
     </div>
   );
 }
