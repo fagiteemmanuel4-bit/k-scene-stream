@@ -1,20 +1,15 @@
-// Consumet API - keyless public streaming sources
-// Multiple mirrors for reliability
-const CONSUMET_MIRRORS = [
-  "https://api.consumet.org",
-  "https://consumet-api.onrender.com",
-];
+// Direct streaming API integration
+// Priority order: vidsrc.xyz → 2embed → vidsrc.to → embedder.to
 
 export type StreamSource = {
   url: string;
   quality: string;
   isM3U8: boolean;
+  isEmbed?: boolean;
+  label?: string;
 };
 
-export type SubtitleTrack = {
-  url: string;
-  lang: string;
-};
+export type SubtitleTrack = { url: string; lang: string };
 
 export type StreamResult = {
   sources: StreamSource[];
@@ -22,89 +17,39 @@ export type StreamResult = {
   headers?: Record<string, string>;
 };
 
-async function fetchFromMirror(path: string): Promise<StreamResult | null> {
-  for (const base of CONSUMET_MIRRORS) {
-    try {
-      const res = await fetch(`${base}${path}`, {
-        headers: { "Accept": "application/json" },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data?.sources?.length) {
-        return {
-          sources: data.sources.map((s: any) => ({
-            url: s.url,
-            quality: s.quality || "auto",
-            isM3U8: s.url?.includes(".m3u8") || s.isM3U8 || false,
-          })),
-          subtitles: (data.subtitles || []).map((s: any) => ({ url: s.url, lang: s.lang || "Unknown" })),
-          headers: data.headers,
-        };
-      }
-    } catch {
-      // try next mirror
-    }
-  }
-  return null;
+// ── Direct embed sources (proven to work without key) ──────────────────────
+
+function buildMovieSources(tmdbId: number): StreamSource[] {
+  return [
+    { url: `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc XYZ" },
+    { url: `https://vidsrc.to/embed/movie/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc" },
+    { url: `https://2embed.cc/embed/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "2Embed" },
+    { url: `https://player.autoembed.cc/embed/movie/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "AutoEmbed" },
+    { url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`, quality: "HD", isM3U8: false, isEmbed: true, label: "MultiEmbed" },
+    { url: `https://moviesapi.club/movie/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "MoviesAPI" },
+  ];
 }
 
-// For TV shows - use gogoanime provider which supports Korean content
+function buildTVSources(tmdbId: number, season: number, episode: number): StreamSource[] {
+  return [
+    { url: `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc XYZ" },
+    { url: `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc" },
+    { url: `https://2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "2Embed" },
+    { url: `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "AutoEmbed" },
+    { url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "MultiEmbed" },
+    { url: `https://moviesapi.club/tv/${tmdbId}-${season}-${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "MoviesAPI" },
+  ];
+}
+
+export async function getMovieStream(tmdbId: number): Promise<StreamResult> {
+  return { sources: buildMovieSources(tmdbId), subtitles: [] };
+}
+
 export async function getEpisodeStream(
   tmdbId: number,
   season: number,
   episode: number,
-  title: string
-): Promise<StreamResult | null> {
-  // Try vidsrc embed approach first (most reliable for Korean content)
-  // Then fall back to consumet gogoanime
-  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, "");
-
-  // Try multiple consumet providers
-  const paths = [
-    `/meta/tmdb/watch/${tmdbId}?season=${season}&episode=${episode}`,
-    `/movies/gogoanime/watch/${slug}-episode-${episode}`,
-    `/anime/gogoanime/${slug}-episode-${episode}`,
-  ];
-
-  for (const path of paths) {
-    const result = await fetchFromMirror(path);
-    if (result) return result;
-  }
-
-  // Return vidsrc as fallback embed (not direct stream but displayable in iframe)
-  return {
-    sources: [
-      {
-        url: `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`,
-        quality: "auto",
-        isM3U8: false,
-      },
-      {
-        url: `https://2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`,
-        quality: "auto",
-        isM3U8: false,
-      },
-    ],
-    subtitles: [],
-  };
-}
-
-export async function getMovieStream(tmdbId: number): Promise<StreamResult | null> {
-  const paths = [
-    `/meta/tmdb/watch/${tmdbId}`,
-    `/movies/flixhq/watch-movie/watch-${tmdbId}`,
-  ];
-
-  for (const path of paths) {
-    const result = await fetchFromMirror(path);
-    if (result) return result;
-  }
-
-  return {
-    sources: [
-      { url: `https://vidsrc.to/embed/movie/${tmdbId}`, quality: "auto", isM3U8: false },
-    ],
-    subtitles: [],
-  };
+  _title: string
+): Promise<StreamResult> {
+  return { sources: buildTVSources(tmdbId, season, episode), subtitles: [] };
 }

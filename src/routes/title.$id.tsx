@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Play, Plus, Check, Star, Clock, Calendar, Download, LogIn } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Play, Plus, Check, Star, Clock, Calendar, ChevronLeft, Layers } from "lucide-react";
 import { getDetail, getSeason, img } from "@/lib/tmdb";
 import { PosterCard, PosterSkeleton } from "@/components/PosterCard";
 import { useWatchlist } from "@/lib/watchlist";
@@ -13,9 +13,7 @@ import { useWatchHistory, useDownloads, useSettings } from "@/lib/userdata";
 import type { StreamResult } from "@/lib/consumet";
 
 export const Route = createFileRoute("/title/$id")({
-  head: ({ params }) => ({
-    meta: [{ title: `Watch — K·Scene` }, { name: "description", content: `Stream K-drama #${params.id} on K·Scene.` }],
-  }),
+  head: () => ({ meta: [{ title: "Watch — K·Scene" }] }),
   component: TitlePage,
 });
 
@@ -33,6 +31,7 @@ function TitlePage() {
   const { addToHistory } = useWatchHistory();
   const { addDownload } = useDownloads();
   const { settings } = useSettings();
+  const [showEps, setShowEps] = useState(true);
 
   const seasonQ = useQuery({
     queryKey: ["season", tid, season],
@@ -40,7 +39,7 @@ function TitlePage() {
     enabled: !!data,
   });
 
-  const handlePlayEpisode = async (epNumber: number, epName: string) => {
+  const handlePlayEpisode = useCallback(async (epNumber: number, epName: string) => {
     if (!user) { setShowAuth(true); return; }
     setStreamLoading(true);
     setPlayingEp({ ep: epNumber, name: epName });
@@ -48,27 +47,24 @@ function TitlePage() {
     const result = await getEpisodeStream(tid, season, epNumber, title);
     setActiveStream(result);
     setStreamLoading(false);
-    // track history
     addToHistory({ id: tid, name: title, poster_path: data?.poster_path ?? null, episode: epNumber, season });
-    // scroll player into view
-    document.getElementById("player-section")?.scrollIntoView({ behavior: "smooth" });
-  };
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [user, data, tid, season, addToHistory]);
 
   const handleDownload = (url: string, quality: string) => {
     if (!user) { setShowAuth(true); return; }
     const title = data?.name || data?.title || "";
-    addDownload({
-      id: tid, name: title, poster_path: data?.poster_path ?? null,
-      episode: playingEp?.ep, season, quality, url,
-    });
+    addDownload({ id: tid, name: title, poster_path: data?.poster_path ?? null, episode: playingEp?.ep, season, quality, url });
   };
 
   if (isLoading || !data) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-8">
-        <div className="aspect-video w-full animate-pulse rounded-2xl bg-muted" />
-        <div className="mt-6 h-8 w-2/3 animate-pulse rounded bg-muted" />
-        <div className="mt-3 h-4 w-1/3 animate-pulse rounded bg-muted" />
+      <div>
+        <div className="aspect-video w-full animate-pulse bg-gray-200" />
+        <div className="p-4 space-y-3">
+          <div className="h-8 w-3/4 animate-pulse rounded-xl bg-gray-200" />
+          <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
+        </div>
       </div>
     );
   }
@@ -77,202 +73,201 @@ function TitlePage() {
   const recs = (data as any).recommendations?.results || [];
   const title = data.name || data.title || "";
   const saved = has(tid);
-  const preferredQ = settings.streamingQuality === "auto" ? "auto" : settings.streamingQuality;
 
   return (
-    <div className="pb-20">
+    <div className="min-h-screen bg-white">
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
-      {/* Backdrop */}
-      <div className="relative h-[40vh] min-h-[260px] w-full overflow-hidden">
-        {data.backdrop_path && (
-          <img src={img(data.backdrop_path, "original")} alt="" className="h-full w-full object-cover" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
-      </div>
-
-      <div className="mx-auto -mt-28 max-w-7xl px-4 sm:px-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
-          {/* Left */}
-          <div>
-            {/* Player */}
-            <div id="player-section" className="overflow-hidden rounded-2xl bg-black shadow-hero ring-1 ring-border">
-              {streamLoading ? (
-                <div className="grid aspect-video w-full place-items-center text-sm text-white/60 bg-black">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    <span>Loading stream…</span>
-                  </div>
-                </div>
-              ) : activeStream ? (
-                <VideoPlayer
-                  streamResult={activeStream}
-                  title={playingEp ? `${title} S${season}E${playingEp.ep} – ${playingEp.name}` : title}
-                  poster={img(data.backdrop_path, "w780")}
-                  onDownload={handleDownload}
-                  defaultQuality={preferredQ}
-                />
-              ) : (
-                <div className="relative grid aspect-video w-full place-items-center bg-gradient-to-br from-background to-muted">
-                  {data.backdrop_path && (
-                    <img src={img(data.backdrop_path, "w780")} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
-                  )}
-                  <div className="relative flex flex-col items-center gap-4 text-center px-6">
-                    <div className="text-4xl">🎬</div>
-                    <p className="font-semibold text-white">Select an episode below to start watching</p>
-                    {!user && (
-                      <button
-                        onClick={() => setShowAuth(true)}
-                        className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground"
-                      >
-                        <LogIn className="h-4 w-4" /> Sign in to Watch
-                      </button>
-                    )}
-                  </div>
-                </div>
+      {/* ── FIXED PLAYER (sticky top) ── */}
+      <div className="sticky top-0 z-30 w-full bg-black shadow-hero">
+        {streamLoading ? (
+          <div className="flex aspect-video w-full items-center justify-center bg-gray-950">
+            <div className="flex flex-col items-center gap-3 text-white">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <span className="text-sm">Loading stream…</span>
+            </div>
+          </div>
+        ) : activeStream ? (
+          <VideoPlayer
+            streamResult={activeStream}
+            title={playingEp ? `${title} S${season}E${playingEp.ep} – ${playingEp.name}` : title}
+            poster={img(data.backdrop_path, "w780")}
+            onDownload={handleDownload}
+          />
+        ) : (
+          <div className="relative flex aspect-video w-full items-center justify-center bg-gray-950">
+            {data.backdrop_path && (
+              <img src={img(data.backdrop_path, "w780")} alt="" className="absolute inset-0 h-full w-full object-cover opacity-20" />
+            )}
+            <div className="relative flex flex-col items-center gap-3 text-center text-white px-6">
+              <div className="text-3xl">🎬</div>
+              <p className="text-sm font-semibold">Tap an episode below to start watching</p>
+              {!user && (
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="mt-1 rounded-full bg-primary px-5 py-2 text-sm font-bold text-white"
+                >
+                  Sign in to Watch
+                </button>
               )}
             </div>
+          </div>
+        )}
 
-            {/* Info */}
-            <div className="mt-6">
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{title}</h1>
-              {data.tagline && <p className="mt-2 italic text-muted-foreground">"{data.tagline}"</p>}
-              <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-                  <Star className="h-4 w-4 fill-primary text-primary" />
+        {/* Now playing bar */}
+        {playingEp && (
+          <div className="flex items-center justify-between bg-primary/10 px-4 py-2 border-t border-primary/20">
+            <span className="text-xs font-semibold text-primary">
+              ▶ S{season} E{playingEp.ep} — {playingEp.name}
+            </span>
+            <Link to="/" className="text-xs text-gray-500 hover:text-primary flex items-center gap-1">
+              <ChevronLeft className="h-3 w-3" /> Home
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* ── SCROLLABLE CONTENT BELOW ── */}
+      <div className="overflow-y-auto">
+        {/* Title info */}
+        <div className="px-4 pt-4 pb-2 border-b bg-white">
+          <div className="flex items-start gap-3">
+            {data.poster_path && (
+              <img src={img(data.poster_path, "w185")} alt={title} className="h-20 w-14 shrink-0 rounded-xl object-cover shadow-card" />
+            )}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-black leading-tight">{title}</h1>
+              {data.tagline && <p className="mt-0.5 text-xs italic text-gray-500 line-clamp-1">"{data.tagline}"</p>}
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                <span className="flex items-center gap-1 font-bold text-gray-900">
+                  <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
                   {data.vote_average.toFixed(1)}
                 </span>
-                <span className="inline-flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
                   {(data.first_air_date || "").slice(0, 4)}
                 </span>
-                {!!data.episode_run_time?.length && (
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {data.episode_run_time[0]} min
+                {data.episode_run_time?.[0] && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {data.episode_run_time[0]}m
                   </span>
                 )}
-                {data.number_of_episodes && <span>{data.number_of_episodes} episodes</span>}
               </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {data.genres.map((g) => (
-                  <span key={g.id} className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground">
-                    {g.name}
-                  </span>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {data.genres.slice(0, 3).map(g => (
+                  <span key={g.id} className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">{g.name}</span>
                 ))}
               </div>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  onClick={() => seasonQ.data?.episodes?.[0] && handlePlayEpisode(seasonQ.data.episodes[0].episode_number, seasonQ.data.episodes[0].name)}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:scale-[1.02] hover:brightness-110"
-                >
-                  <Play className="h-4 w-4 fill-current" /> Play Episode 1
-                </button>
-                <button
-                  onClick={() => toggle({ id: tid, name: title, poster_path: data.poster_path, vote_average: data.vote_average })}
-                  className="inline-flex items-center gap-2 rounded-full border bg-card px-6 py-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
-                >
-                  {saved ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                  {saved ? "In Watchlist" : "Watchlist"}
-                </button>
-              </div>
-
-              <p className="mt-6 max-w-3xl text-[15px] leading-relaxed text-foreground/80">{data.overview}</p>
             </div>
           </div>
 
-          {/* Right: poster */}
-          <aside className="order-first lg:order-none">
-            <div className="overflow-hidden rounded-2xl bg-muted shadow-hero" style={{ aspectRatio: "2/3" }}>
-              {data.poster_path && (
-                <img src={img(data.poster_path, "w780")} alt={title} className="h-full w-full object-cover" />
-              )}
-            </div>
-          </aside>
-        </div>
+          {/* Action buttons */}
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => seasonQ.data?.episodes?.[0] && handlePlayEpisode(seasonQ.data.episodes[0].episode_number, seasonQ.data.episodes[0].name)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-white shadow-lift transition hover:brightness-110"
+            >
+              <Play className="h-4 w-4 fill-current" /> Play EP 1
+            </button>
+            <button
+              onClick={() => toggle({ id: tid, name: title, poster_path: data.poster_path, vote_average: data.vote_average })}
+              className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${saved ? "border-primary bg-primary/5 text-primary" : "border-gray-200 hover:border-primary hover:text-primary"}`}
+            >
+              {saved ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {saved ? "Saved" : "Save"}
+            </button>
+          </div>
 
-        {/* Cast */}
-        {cast.length > 0 && (
-          <section className="mt-14">
-            <h2 className="text-xl font-bold">Cast</h2>
-            <div className="scrollbar-hide mt-4 flex gap-5 overflow-x-auto pb-2">
-              {cast.map((c: any) => (
-                <div key={c.id} className="flex w-20 shrink-0 flex-col items-center text-center">
-                  <div className="h-20 w-20 overflow-hidden rounded-full bg-muted ring-2 ring-border">
-                    {c.profile_path ? (
-                      <img src={img(c.profile_path, "w200")} alt={c.name} className="h-full w-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-xs text-muted-foreground">{c.name?.[0]}</div>
-                    )}
-                  </div>
-                  <div className="mt-2 line-clamp-2 text-xs font-semibold">{c.name}</div>
-                  <div className="line-clamp-1 text-[11px] text-muted-foreground">{c.character}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
+          {/* Overview */}
+          <p className="mt-3 text-sm leading-relaxed text-gray-600 line-clamp-3">{data.overview}</p>
+        </div>
 
         {/* Episodes */}
         {!!data.seasons?.length && (
-          <section className="mt-14">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Episodes</h2>
-              <select
-                value={season}
-                onChange={(e) => setSeason(Number(e.target.value))}
-                className="rounded-full border bg-card px-4 py-2 text-sm font-semibold outline-none focus:border-primary"
-              >
-                {data.seasons!.filter((s) => s.season_number > 0).map((s) => (
-                  <option key={s.id} value={s.season_number}>{s.name}</option>
-                ))}
-              </select>
+          <section className="bg-white border-b">
+            <div
+              className="flex cursor-pointer items-center justify-between px-4 py-3"
+              onClick={() => setShowEps(p => !p)}
+            >
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-primary" />
+                <h2 className="font-bold">Episodes</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={season}
+                  onClick={e => e.stopPropagation()}
+                  onChange={e => setSeason(Number(e.target.value))}
+                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold outline-none"
+                >
+                  {data.seasons!.filter(s => s.season_number > 0).map(s => (
+                    <option key={s.id} value={s.season_number}>{s.name}</option>
+                  ))}
+                </select>
+                <span className="text-gray-400 text-sm">{showEps ? "▲" : "▼"}</span>
+              </div>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {seasonQ.isLoading && Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="animate-pulse rounded-2xl bg-muted" style={{ aspectRatio: "16/10" }} />
-              ))}
-              {seasonQ.data?.episodes.map((ep) => (
-                <article
-                  key={ep.id}
-                  onClick={() => handlePlayEpisode(ep.episode_number, ep.name)}
-                  className={`group cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-card transition hover:-translate-y-1 hover:shadow-lift ${
-                    playingEp?.ep === ep.episode_number ? "ring-2 ring-primary" : ""
-                  }`}
-                >
-                  <div className="relative overflow-hidden bg-muted" style={{ aspectRatio: "16/9" }}>
-                    {ep.still_path ? (
-                      <img src={img(ep.still_path, "w500")} alt={ep.name} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
-                    ) : data.backdrop_path && (
-                      <img src={img(data.backdrop_path, "w500")} alt="" className="h-full w-full object-cover opacity-50" />
-                    )}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
-                      <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-white shadow-lg">
-                        <Play className="h-5 w-5 fill-current" />
+            {showEps && (
+              <div className="px-4 pb-4 space-y-2">
+                {seasonQ.isLoading && Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-100" />
+                ))}
+                {seasonQ.data?.episodes.map(ep => (
+                  <div
+                    key={ep.id}
+                    onClick={() => handlePlayEpisode(ep.episode_number, ep.name)}
+                    className={`group flex cursor-pointer gap-3 rounded-xl border p-3 transition hover:border-primary hover:shadow-card ${
+                      playingEp?.ep === ep.episode_number ? "border-primary bg-primary/5" : "border-gray-100 bg-gray-50"
+                    }`}
+                  >
+                    <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-200">
+                      {ep.still_path ? (
+                        <img src={img(ep.still_path, "w300")} alt={ep.name} className="h-full w-full object-cover" loading="lazy" />
+                      ) : data.backdrop_path && (
+                        <img src={img(data.backdrop_path, "w300")} alt="" className="h-full w-full object-cover opacity-50" />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover:opacity-100">
+                        <Play className="h-5 w-5 fill-white text-white" />
                       </div>
+                      {playingEp?.ep === ep.episode_number && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-primary/30">
+                          <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                        </div>
+                      )}
                     </div>
-                    <div className="absolute bottom-2 left-2 rounded-full bg-background/95 px-2 py-0.5 text-[11px] font-bold backdrop-blur">
-                      EP {ep.episode_number}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="shrink-0 text-[10px] font-black text-primary">E{ep.episode_number}</span>
+                        <span className="line-clamp-1 text-sm font-bold text-gray-900">{ep.name}</span>
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{ep.overview || "No description."}</p>
+                      {ep.runtime && <span className="mt-1 inline-block text-[10px] text-gray-400">{ep.runtime}m</span>}
                     </div>
-                    {ep.runtime && (
-                      <div className="absolute bottom-2 right-2 rounded-full bg-background/95 px-2 py-0.5 text-[11px] font-semibold backdrop-blur">
-                        {ep.runtime}m
-                      </div>
-                    )}
-                    {playingEp?.ep === ep.episode_number && (
-                      <div className="absolute top-2 right-2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
-                        Now Playing
-                      </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Cast */}
+        {cast.length > 0 && (
+          <section className="bg-white border-b px-4 py-4">
+            <h2 className="mb-3 font-bold">Cast</h2>
+            <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-1">
+              {cast.map((c: any) => (
+                <div key={c.id} className="flex w-16 shrink-0 flex-col items-center text-center">
+                  <div className="h-16 w-16 overflow-hidden rounded-full bg-gray-100 ring-2 ring-gray-200">
+                    {c.profile_path ? (
+                      <img src={img(c.profile_path, "w185")} alt={c.name} className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-sm font-bold text-gray-400">{c.name?.[0]}</div>
                     )}
                   </div>
-                  <div className="p-4">
-                    <div className="line-clamp-1 text-sm font-bold">{ep.name}</div>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{ep.overview || "No description available."}</p>
-                  </div>
-                </article>
+                  <div className="mt-1 line-clamp-2 text-[10px] font-semibold text-gray-800">{c.name}</div>
+                </div>
               ))}
             </div>
           </section>
@@ -280,10 +275,10 @@ function TitlePage() {
 
         {/* Recommendations */}
         {recs.length > 0 && (
-          <section className="mt-14">
-            <h2 className="text-xl font-bold">You Might Also Like</h2>
-            <div className="scrollbar-hide mt-4 flex gap-4 overflow-x-auto pb-4">
-              {recs.slice(0, 18).map((t: any) => <PosterCard key={t.id} t={t} />)}
+          <section className="bg-white px-4 py-4">
+            <h2 className="mb-3 font-bold">You May Also Like</h2>
+            <div className="grid grid-cols-3 gap-3">
+              {recs.slice(0, 9).map((t: any) => <PosterCard key={t.id} t={t} />)}
             </div>
           </section>
         )}
