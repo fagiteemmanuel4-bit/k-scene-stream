@@ -56,8 +56,6 @@ export const getByGenre = (genreId: number, page = 1) =>
 export const getByPage = (page: number) =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) => d.results);
 
-export const getByGenre = (genreId: number) =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, with_genres: genreId }).then((d) => d.results);
 
 export const GENRES = {
   romance: 10749,
