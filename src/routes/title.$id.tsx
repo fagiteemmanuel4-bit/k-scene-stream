@@ -1,10 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Play, Plus, Check, Star, Clock, Calendar } from "lucide-react";
+import { Play, Plus, Check, Star, Clock, Calendar, Download, LogIn } from "lucide-react";
 import { getDetail, getSeason, img } from "@/lib/tmdb";
 import { PosterCard, PosterSkeleton } from "@/components/PosterCard";
 import { useWatchlist } from "@/lib/watchlist";
+import { VideoPlayer } from "@/components/VideoPlayer";
+import { AuthModal } from "@/components/AuthModal";
+import { useAuth } from "@/lib/auth";
+import { getEpisodeStream } from "@/lib/consumet";
+import { useWatchHistory, useDownloads, useSettings } from "@/lib/userdata";
+import type { StreamResult } from "@/lib/consumet";
 
 export const Route = createFileRoute("/title/$id")({
   head: ({ params }) => ({
@@ -19,12 +25,43 @@ function TitlePage() {
   const { data, isLoading } = useQuery({ queryKey: ["detail", tid], queryFn: () => getDetail(tid) });
   const [season, setSeason] = useState<number>(1);
   const { has, toggle } = useWatchlist();
+  const { user } = useAuth();
+  const [showAuth, setShowAuth] = useState(false);
+  const [activeStream, setActiveStream] = useState<StreamResult | null>(null);
+  const [playingEp, setPlayingEp] = useState<{ ep: number; name: string } | null>(null);
+  const [streamLoading, setStreamLoading] = useState(false);
+  const { addToHistory } = useWatchHistory();
+  const { addDownload } = useDownloads();
+  const { settings } = useSettings();
 
   const seasonQ = useQuery({
     queryKey: ["season", tid, season],
     queryFn: () => getSeason(tid, season),
     enabled: !!data,
   });
+
+  const handlePlayEpisode = async (epNumber: number, epName: string) => {
+    if (!user) { setShowAuth(true); return; }
+    setStreamLoading(true);
+    setPlayingEp({ ep: epNumber, name: epName });
+    const title = data?.name || data?.title || "";
+    const result = await getEpisodeStream(tid, season, epNumber, title);
+    setActiveStream(result);
+    setStreamLoading(false);
+    // track history
+    addToHistory({ id: tid, name: title, poster_path: data?.poster_path ?? null, episode: epNumber, season });
+    // scroll player into view
+    document.getElementById("player-section")?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleDownload = (url: string, quality: string) => {
+    if (!user) { setShowAuth(true); return; }
+    const title = data?.name || data?.title || "";
+    addDownload({
+      id: tid, name: title, poster_path: data?.poster_path ?? null,
+      episode: playingEp?.ep, season, quality, url,
+    });
+  };
 
   if (isLoading || !data) {
     return (
@@ -36,45 +73,69 @@ function TitlePage() {
     );
   }
 
-  const trailer = (data as any).videos?.results?.find((v: any) => v.site === "YouTube" && v.type === "Trailer") ||
-    (data as any).videos?.results?.[0];
   const cast = (data as any).credits?.cast?.slice(0, 12) || [];
   const recs = (data as any).recommendations?.results || [];
   const title = data.name || data.title || "";
   const saved = has(tid);
+  const preferredQ = settings.streamingQuality === "auto" ? "auto" : settings.streamingQuality;
 
   return (
     <div className="pb-20">
-      {/* Backdrop hero */}
-      <div className="relative h-[44vh] min-h-[300px] w-full overflow-hidden">
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+
+      {/* Backdrop */}
+      <div className="relative h-[40vh] min-h-[260px] w-full overflow-hidden">
         {data.backdrop_path && (
           <img src={img(data.backdrop_path, "original")} alt="" className="h-full w-full object-cover" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-background/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/10" />
       </div>
 
-      <div className="mx-auto -mt-32 max-w-7xl px-4 sm:px-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-          {/* Left: player + info */}
+      <div className="mx-auto -mt-28 max-w-7xl px-4 sm:px-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
+          {/* Left */}
           <div>
-            <div className="overflow-hidden rounded-2xl bg-black shadow-hero ring-1 ring-border">
-              {trailer ? (
-                <iframe
-                  src={`https://www.youtube.com/embed/${trailer.key}?rel=0`}
-                  title={title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  className="aspect-video w-full"
+            {/* Player */}
+            <div id="player-section" className="overflow-hidden rounded-2xl bg-black shadow-hero ring-1 ring-border">
+              {streamLoading ? (
+                <div className="grid aspect-video w-full place-items-center text-sm text-white/60 bg-black">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    <span>Loading stream…</span>
+                  </div>
+                </div>
+              ) : activeStream ? (
+                <VideoPlayer
+                  streamResult={activeStream}
+                  title={playingEp ? `${title} S${season}E${playingEp.ep} – ${playingEp.name}` : title}
+                  poster={img(data.backdrop_path, "w780")}
+                  onDownload={handleDownload}
+                  defaultQuality={preferredQ}
                 />
               ) : (
-                <div className="grid aspect-video w-full place-items-center text-sm text-white/60">
-                  Trailer unavailable
+                <div className="relative grid aspect-video w-full place-items-center bg-gradient-to-br from-background to-muted">
+                  {data.backdrop_path && (
+                    <img src={img(data.backdrop_path, "w780")} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30" />
+                  )}
+                  <div className="relative flex flex-col items-center gap-4 text-center px-6">
+                    <div className="text-4xl">🎬</div>
+                    <p className="font-semibold text-white">Select an episode below to start watching</p>
+                    {!user && (
+                      <button
+                        onClick={() => setShowAuth(true)}
+                        className="flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground"
+                      >
+                        <LogIn className="h-4 w-4" /> Sign in to Watch
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
+            {/* Info */}
             <div className="mt-6">
-              <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{title}</h1>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{title}</h1>
               {data.tagline && <p className="mt-2 italic text-muted-foreground">"{data.tagline}"</p>}
               <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1 font-semibold text-foreground">
@@ -103,20 +164,18 @@ function TitlePage() {
               </div>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <a
-                  href={trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : "#"}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  onClick={() => seasonQ.data?.episodes?.[0] && handlePlayEpisode(seasonQ.data.episodes[0].episode_number, seasonQ.data.episodes[0].name)}
                   className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lift transition hover:scale-[1.02] hover:brightness-110"
                 >
-                  <Play className="h-4 w-4 fill-current" /> Watch Now
-                </a>
+                  <Play className="h-4 w-4 fill-current" /> Play Episode 1
+                </button>
                 <button
                   onClick={() => toggle({ id: tid, name: title, poster_path: data.poster_path, vote_average: data.vote_average })}
                   className="inline-flex items-center gap-2 rounded-full border bg-card px-6 py-3 text-sm font-semibold transition hover:border-primary hover:text-primary"
                 >
                   {saved ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                  {saved ? "In Watchlist" : "Add to Watchlist"}
+                  {saved ? "In Watchlist" : "Watchlist"}
                 </button>
               </div>
 
@@ -140,8 +199,8 @@ function TitlePage() {
             <h2 className="text-xl font-bold">Cast</h2>
             <div className="scrollbar-hide mt-4 flex gap-5 overflow-x-auto pb-2">
               {cast.map((c: any) => (
-                <div key={c.id} className="flex w-24 shrink-0 flex-col items-center text-center">
-                  <div className="h-24 w-24 overflow-hidden rounded-full bg-muted ring-2 ring-border">
+                <div key={c.id} className="flex w-20 shrink-0 flex-col items-center text-center">
+                  <div className="h-20 w-20 overflow-hidden rounded-full bg-muted ring-2 ring-border">
                     {c.profile_path ? (
                       <img src={img(c.profile_path, "w200")} alt={c.name} className="h-full w-full object-cover" loading="lazy" />
                     ) : (
@@ -177,20 +236,35 @@ function TitlePage() {
                 <div key={i} className="animate-pulse rounded-2xl bg-muted" style={{ aspectRatio: "16/10" }} />
               ))}
               {seasonQ.data?.episodes.map((ep) => (
-                <article key={ep.id} className="group overflow-hidden rounded-2xl border bg-card shadow-card transition hover:-translate-y-1 hover:shadow-lift">
+                <article
+                  key={ep.id}
+                  onClick={() => handlePlayEpisode(ep.episode_number, ep.name)}
+                  className={`group cursor-pointer overflow-hidden rounded-2xl border bg-card shadow-card transition hover:-translate-y-1 hover:shadow-lift ${
+                    playingEp?.ep === ep.episode_number ? "ring-2 ring-primary" : ""
+                  }`}
+                >
                   <div className="relative overflow-hidden bg-muted" style={{ aspectRatio: "16/9" }}>
                     {ep.still_path ? (
                       <img src={img(ep.still_path, "w500")} alt={ep.name} loading="lazy" className="h-full w-full object-cover transition group-hover:scale-105" />
                     ) : data.backdrop_path && (
                       <img src={img(data.backdrop_path, "w500")} alt="" className="h-full w-full object-cover opacity-50" />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 transition group-hover:opacity-100" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+                      <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-white shadow-lg">
+                        <Play className="h-5 w-5 fill-current" />
+                      </div>
+                    </div>
                     <div className="absolute bottom-2 left-2 rounded-full bg-background/95 px-2 py-0.5 text-[11px] font-bold backdrop-blur">
                       EP {ep.episode_number}
                     </div>
                     {ep.runtime && (
                       <div className="absolute bottom-2 right-2 rounded-full bg-background/95 px-2 py-0.5 text-[11px] font-semibold backdrop-blur">
                         {ep.runtime}m
+                      </div>
+                    )}
+                    {playingEp?.ep === ep.episode_number && (
+                      <div className="absolute top-2 right-2 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
+                        Now Playing
                       </div>
                     )}
                   </div>
