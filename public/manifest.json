@@ -1,29 +1,16 @@
 {
-  "name": "K·Scene — K-Drama Streaming",
+  "name": "K·Scene — Premium K-Drama Streaming",
   "short_name": "K·Scene",
-  "description": "Discover and stream the best Korean dramas.",
+  "description": "Stream the latest K-Dramas and K-Pop content ad-free with native high-quality playback.",
   "start_url": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#ffffff",
-  "theme_color": "#e8503a",
-  "orientation": "portrait-primary",
+  "theme_color": "#FF2E50",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
-  ],
-  "screenshots": [],
-  "categories": ["entertainment", "video"],
-  "lang": "en",
-  "prefer_related_applications": false
+  ]
 }

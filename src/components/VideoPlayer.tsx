@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { StreamResult, StreamSource } from "@/lib/consumet";
-import { Download, AlertCircle, Shield, Zap } from "lucide-react";
+import { Download, AlertCircle, Shield, Zap, Settings, Info, CheckCircle2 } from "lucide-react";
 import Plyr from "plyr";
 import "plyr/dist/plyr.css";
 import Hls from "hls.js";
@@ -11,9 +11,10 @@ type Props = {
   title: string;
   poster?: string;
   onDownload?: (url: string, quality: string) => void;
+  onSmartDownload?: () => void;
 };
 
-export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) {
+export function VideoPlayer({ streamResult, title, poster, onDownload, onSmartDownload }: Props) {
   const [activeSource, setActiveSource] = useState<StreamSource | null>(
     streamResult.sources.length > 0 ? streamResult.sources[0] : null,
   );
@@ -23,7 +24,6 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
   const hlsRef = useRef<Hls | null>(null);
   const currentTimeRef = useRef<number>(0);
 
-  // Handle Data Saver & Initial source
   useEffect(() => {
     if (streamResult.sources.length > 0) {
       let source = streamResult.sources[0];
@@ -42,16 +42,12 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
         setActiveSource(source);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamResult, dataSaver]);
 
-  // Initialize Player
   useEffect(() => {
     if (!videoRef.current || !activeSource) return;
 
     const video = videoRef.current;
-
-    // Cleanup previous instances
     if (plyrRef.current) plyrRef.current.destroy();
     if (hlsRef.current) hlsRef.current.destroy();
 
@@ -90,36 +86,33 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
       plyrRef.current = new Plyr(video, options);
       if (currentTimeRef.current > 0) {
         video.currentTime = currentTimeRef.current;
-        video.play().catch(() => {
-          console.log("[Player] Autoplay prevented after quality switch");
-        });
+        video.play().catch(() => {});
       }
     };
 
     if (Hls.isSupported() && activeSource.url.includes(".m3u8")) {
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-      });
+      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
       hlsRef.current = hls;
       hls.loadSource(activeSource.url);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log("[Player] HLS Manifest parsed for:", activeSource.quality);
         initPlyr();
       });
       hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error("[Streaming Error]", event, data);
+        console.error("[Player] HLS Error:", data.type, data.details, data.fatal);
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error("Fatal network error encountered, trying to recover");
+              console.warn("[Player] Attempting network recovery...");
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error("Fatal media error encountered, trying to recover");
+              console.warn("[Player] Attempting media recovery...");
               hls.recoverMediaError();
               break;
             default:
+              console.error("[Player] Unrecoverable error, destroying instance");
               hls.destroy();
               break;
           }
@@ -127,9 +120,7 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
       });
     } else {
       video.src = activeSource.url;
-      video.onloadedmetadata = () => {
-        initPlyr();
-      };
+      video.onloadedmetadata = () => initPlyr();
     }
 
     return () => {
@@ -140,35 +131,45 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
 
   const handleDownload = async () => {
     if (!activeSource) return;
-    if (onDownload) onDownload(activeSource.url, activeSource.quality);
 
     if (activeSource.url.includes(".m3u8")) {
-      toast.error(
-        "Direct download for HLS streams (.m3u8) is not supported. Please use a video downloader extension.",
-      );
-      return;
+        toast.info("HLS Stream detected. Opening stream link...");
+        window.open(activeSource.url, '_blank');
+        return;
     }
 
+    toast.info("Preparing native download (Blob structure)...");
+    console.log("[Download] Initiating fetch for:", activeSource.url);
     try {
-      toast.info("Starting download...");
-      const response = await fetch(activeSource.url);
-      if (!response.ok) throw new Error("Network response was not ok");
+        const response = await fetch(activeSource.url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${title.replace(/[^a-z0-9]/gi, "_")}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success("Download started!");
+        const blob = await response.blob();
+        console.log("[Download] Blob created, size:", blob.size);
+
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${activeSource.quality}.mp4`;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+
+        // Use a small timeout before revoking to ensure the browser has started the download
+        setTimeout(() => {
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }, 100);
+
+        toast.success("Download started!");
     } catch (error) {
-      console.error("[Download Error]", error);
-      toast.error("Download failed due to CORS restrictions. Opening source in new tab.");
-      window.open(activeSource.url, "_blank");
+        console.error("[Download] Native download failed:", error);
+        toast.error("Native download failed. Trying fallback...");
+        window.open(activeSource.url, '_blank');
     }
+
+    if (onDownload) onDownload(activeSource.url, activeSource.quality);
   };
 
   if (streamResult.sources.length === 0) {
@@ -184,27 +185,30 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
     <div className="flex flex-col bg-black">
       <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16/9" }}>
         <video ref={videoRef} className="plyr-react plyr" playsInline poster={poster} />
+        <div className="absolute top-4 left-4 flex gap-2 pointer-events-none">
+            <span className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-400/30">
+                <Shield className="h-3 w-3" /> AD-FREE
+            </span>
+            {dataSaver && (
+                 <span className="flex items-center gap-1 bg-primary/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-white shadow-lift">
+                    <Zap className="h-3 w-3 fill-current" /> DATA SAVER
+                 </span>
+            )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto bg-gray-950 px-3 py-2 scrollbar-hide border-t border-white/10">
-        <div className="flex items-center gap-2 mr-2">
-          <Shield className="h-4 w-4 text-green-400" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-            Ad-Free
-          </span>
-        </div>
-
+      <div className="flex items-center gap-3 overflow-x-auto bg-gray-950 px-4 py-3 border-t border-white/5 scrollbar-hide">
         <button
           onClick={() => setDataSaver(!dataSaver)}
-          className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold transition ${
-            dataSaver ? "bg-primary text-white" : "bg-white/10 text-white/70 hover:bg-white/20"
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-widest transition ${
+            dataSaver ? "bg-primary text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
           }`}
         >
           <Zap className={`h-3.5 w-3.5 ${dataSaver ? "fill-current" : ""}`} />
           Data Saver
         </button>
 
-        <div className="h-4 w-[1px] bg-white/10 mx-1" />
+        <div className="h-6 w-[1px] bg-white/10 mx-1 shrink-0" />
 
         {streamResult.sources.map((src, i) => (
           <button
@@ -213,22 +217,30 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
               if (videoRef.current) currentTimeRef.current = videoRef.current.currentTime;
               setActiveSource(src);
             }}
-            className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition ${
+            className={`shrink-0 rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-widest transition border ${
               activeSource?.url === src.url
-                ? "bg-primary/20 text-primary border border-primary/50"
-                : "bg-white/5 text-white/50 hover:bg-white/10"
+                ? "bg-primary/20 text-primary border-primary/50"
+                : "bg-white/5 text-white/40 border-transparent hover:bg-white/10"
             }`}
           >
             {src.quality}
           </button>
         ))}
 
-        <button
-          onClick={handleDownload}
-          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-white/70 hover:bg-primary hover:text-white transition"
-        >
-          <Download className="h-3.5 w-3.5" /> Download
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={onSmartDownload}
+              className="flex shrink-0 items-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-green-500 hover:bg-green-500 hover:text-white transition"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" /> Smart Download
+            </button>
+            <button
+              onClick={handleDownload}
+              className="flex shrink-0 items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white/50 hover:bg-primary hover:text-white transition"
+            >
+              <Download className="h-3.5 w-3.5" /> Download
+            </button>
+        </div>
       </div>
     </div>
   );
