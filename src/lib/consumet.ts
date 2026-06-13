@@ -66,24 +66,49 @@ export async function getMovieboxStream(subjectId: string, season: number = 0, e
 }
 
 // Legacy fallback for Consumet-style API
+async function fetchWithTimeout(url: string, options: any = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
 export async function getEpisodeStream(
   tmdbId: number,
   season: number,
   episode: number,
   title: string
 ): Promise<StreamResult> {
-  // First, try searching Moviebox for the title
-  const searchResults = await searchMoviebox(title);
-  if (searchResults && searchResults.items && searchResults.items.length > 0) {
-    const bestMatch = searchResults.items[0]; // Simplified matching
-    return getMovieboxStream(bestMatch.subject_id, season, episode);
+  console.log(`[Stream] Fetching for ${title} S${season}E${episode}...`);
+
+  try {
+    // First, try searching Moviebox for the title
+    const searchResults = await searchMoviebox(title);
+    if (searchResults && searchResults.items && searchResults.items.length > 0) {
+      const bestMatch = searchResults.items[0]; // Simplified matching
+      console.log(`[Stream] Moviebox match found: ${bestMatch.subject_id}`);
+      const stream = await getMovieboxStream(bestMatch.subject_id, season, episode);
+      if (stream.sources.length > 0) return stream;
+    }
+  } catch (e) {
+    console.warn("[Stream] Moviebox fetch failed, falling back to Xyra", e);
   }
 
   // Fallback to Xyra if Moviebox fails
   const XYRA_URL = "https://xyra.stream";
   const primaryId = `${tmdbId}-${season}-${episode}`;
   try {
-    const res = await fetch(`${XYRA_URL}/stream?api_key=freekey&episode_id=${primaryId}`);
+    console.log(`[Stream] Falling back to Xyra for ${primaryId}`);
+    const res = await fetchWithTimeout(`${XYRA_URL}/stream?api_key=freekey&episode_id=${primaryId}`);
     if (res.ok) {
         const data = await res.json();
         return {

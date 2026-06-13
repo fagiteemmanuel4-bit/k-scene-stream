@@ -78,6 +78,7 @@ function TitlePage() {
   const [activeStream, setActiveStream] = useState<StreamResult | null>(null);
   const [playingEp, setPlayingEp] = useState<{ ep: number; name: string } | null>(null);
   const [streamLoading, setStreamLoading] = useState(false);
+  const [showTrailer, setShowTrailer] = useState(true);
   const { addToHistory } = useWatchHistory();
   const { addDownload } = useDownloads();
   const [showSmartDownload, setShowSmartDownload] = useState(false);
@@ -98,9 +99,22 @@ function TitlePage() {
       setStreamLoading(true);
       setPlayingEp({ ep: epNumber, name: epName });
       const title = data?.name || data?.title || "";
-      const result = await getEpisodeStream(tid, season, epNumber, title);
-      setActiveStream(result);
-      setStreamLoading(false);
+      try {
+        const result = await getEpisodeStream(tid, season, epNumber, title);
+        if (!result || result.sources.length === 0) {
+            toast.error("No streaming sources found for this episode.");
+            setActiveStream(null);
+        } else {
+            setActiveStream(result);
+            setShowTrailer(false);
+        }
+      } catch (e) {
+        console.error("[Stream] Playback error:", e);
+        toast.error("Failed to establish secure stream. Please try again.");
+        setActiveStream(null);
+      } finally {
+        setStreamLoading(false);
+      }
       addToHistory({
         id: tid,
         name: title,
@@ -232,8 +246,18 @@ function TitlePage() {
             onSmartDownload={() => setShowSmartDownload(true)}
           />
         ) : (
-          <div className="relative flex aspect-video w-full items-center justify-center bg-gray-950 group">
-            {data.backdrop_path && (
+          <div className="relative flex aspect-video w-full items-center justify-center bg-gray-950 group overflow-hidden">
+            {showTrailer && data.videos?.results?.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) ? (
+                <div className="absolute inset-0 h-full w-full pointer-events-none">
+                    <iframe
+                        className="absolute top-1/2 left-1/2 w-[150%] h-[150%] -translate-x-1/2 -translate-y-1/2"
+                        src={`https://www.youtube.com/embed/${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`}
+                        allow="autoplay; encrypted-media"
+                        title="Trailer Preview"
+                    />
+                    <div className="absolute inset-0 bg-black/40" />
+                </div>
+            ) : data.backdrop_path && (
               <img
                 src={img(data.backdrop_path, "w780")}
                 alt=""
@@ -270,11 +294,11 @@ function TitlePage() {
         )}
       </div>
 
-      <div className="mx-auto max-w-4xl">
-        <div className="px-6 pt-10 pb-10 border-b bg-white">
-          <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:gap-12">
+      <div className="mx-auto max-w-5xl">
+        <div className="px-4 pt-6 pb-6 border-b bg-white">
+          <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-10">
             {data.poster_path && (
-              <div className="mx-auto w-48 shrink-0 sm:mx-0">
+              <div className="mx-auto w-36 shrink-0 md:mx-0">
                 <div className="relative group">
                     <img
                       src={img(data.poster_path, "w500")}
@@ -292,16 +316,16 @@ function TitlePage() {
                  <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Global Premiere</span>
                  <span className="bg-gray-100 text-gray-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">4K Ultra HD</span>
               </div>
-              <h1 className="text-5xl font-black italic tracking-tighter text-gray-900 leading-[0.8] uppercase">
+              <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter text-gray-900 leading-[0.9] uppercase">
                 {title}
               </h1>
               {data.tagline && (
-                <p className="mt-6 text-sm font-bold italic text-primary uppercase tracking-[0.2em] opacity-80">
+                <p className="mt-3 text-xs font-bold italic text-primary uppercase tracking-[0.15em] opacity-80">
                   {data.tagline}
                 </p>
               )}
 
-              <div className="mt-8 flex flex-wrap items-center gap-8 text-[11px] font-black uppercase tracking-widest text-gray-400">
+              <div className="mt-5 flex flex-wrap items-center gap-5 text-[10px] font-black uppercase tracking-widest text-gray-400">
                 <span className="flex items-center gap-2 text-gray-900">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                   {data.vote_average.toFixed(1)} RATING
@@ -318,19 +342,19 @@ function TitlePage() {
                 )}
               </div>
 
-              <div className="mt-10 flex gap-4">
+              <div className="mt-6 flex gap-3">
                 <button
                   onClick={() => seasonQ.data?.episodes?.[0] && handlePlayEpisode(seasonQ.data.episodes[0].episode_number, seasonQ.data.episodes[0].name)}
-                  className="flex flex-1 items-center justify-center gap-3 rounded-full bg-primary py-5 text-xs font-black uppercase tracking-widest text-white shadow-glow hover:brightness-110 active:scale-95 transition"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-[10px] font-black uppercase tracking-widest text-white shadow-glow hover:brightness-110 active:scale-95 transition"
                 >
-                  <Play className="h-4 w-4 fill-current" /> Watch Episode 1
+                  <Play className="h-3.5 w-3.5 fill-current" /> Watch Episode 1
                 </button>
                 <button
                   onClick={() => toggle({ id: tid, name: title, poster_path: data.poster_path, vote_average: data.vote_average })}
-                  className={`flex items-center gap-3 rounded-full border px-8 py-5 text-xs font-black uppercase tracking-widest transition-all ${saved ? "border-primary bg-primary/5 text-primary" : "border-gray-200 bg-gray-50 hover:border-primary hover:text-primary text-gray-400"}`}
+                  className={`flex items-center gap-2 rounded-full border px-6 py-3.5 text-[10px] font-black uppercase tracking-widest transition-all ${saved ? "border-primary bg-primary/5 text-primary" : "border-gray-200 bg-gray-50 hover:border-primary hover:text-primary text-gray-400"}`}
                 >
-                  {saved ? <CheckCircle2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                  {saved ? "In Watchlist" : "Add to List"}
+                  {saved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                  {saved ? "Saved" : "List"}
                 </button>
               </div>
             </div>

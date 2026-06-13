@@ -20,6 +20,7 @@ import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { AuthModal } from "@/components/AuthModal";
 import { toast } from "sonner";
+import { useUserProfile } from "@/lib/userdata";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [{ title: "My Profile — K·Scene" }] }),
@@ -28,9 +29,13 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
   const { user, signOut: logout } = useAuth();
+  const { profile, updateProfile } = useUserProfile();
   const [showAuth, setShowAuth] = useState(false);
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   const [featureText, setFeatureText] = useState("");
+  const [showCustomizer, setShowCustomizer] = useState(false);
+
+  const emojis = ["🔥", "👑", "🎬", "🍜", "💖", "🌸", "⭐", "🦄", "🌈", "🥋"];
 
   const handleFeatureSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,27 +99,76 @@ function ProfilePage() {
           </div>
       )}
 
-      {/* Profile Header */}
-      <div className="bg-white px-8 pt-16 pb-12 rounded-b-[60px] shadow-sm border-b border-gray-50">
-        <div className="flex flex-col items-center text-center">
-          <div className="relative mb-6">
-              <div className="h-28 w-28 overflow-hidden rounded-[40px] bg-primary p-1 shadow-2xl ring-4 ring-white">
-                <img
-                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`}
-                  alt="avatar"
-                  className="h-full w-full rounded-[38px] bg-white"
-                />
-              </div>
-              <div className="absolute -bottom-2 -right-2 h-10 w-10 rounded-2xl bg-green-500 flex items-center justify-center text-white border-4 border-white shadow-lift">
-                  <ShieldCheck className="h-5 w-5" />
+      {/* Customizer Modal */}
+      {showCustomizer && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+              <div className="w-full max-w-sm rounded-[40px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-black italic tracking-tighter uppercase">Customize Profile</h3>
+                    <button onClick={() => setShowCustomizer(false)} className="rounded-full bg-gray-50 p-2 text-gray-400 hover:text-primary">
+                        <X className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-8">
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">Select Emoji Icon</label>
+                          <div className="grid grid-cols-5 gap-3">
+                              {emojis.map(e => (
+                                  <button
+                                    key={e}
+                                    onClick={() => updateProfile({ emoji: e })}
+                                    className={`aspect-square rounded-2xl text-xl flex items-center justify-center transition-all ${profile.emoji === e ? "bg-primary text-white scale-110 shadow-lift" : "bg-gray-50 hover:bg-gray-100"}`}
+                                  >
+                                      {e}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">Avatar Seed</label>
+                          <input
+                            type="text"
+                            value={profile.avatarSeed}
+                            onChange={(e) => updateProfile({ avatarSeed: e.target.value })}
+                            className="w-full rounded-2xl bg-gray-50 border-none p-4 text-xs font-bold focus:ring-2 focus:ring-primary/20"
+                            placeholder="Type anything to change avatar..."
+                          />
+                      </div>
+
+                      <button
+                        onClick={() => setShowCustomizer(false)}
+                        className="w-full rounded-full bg-primary py-4 text-xs font-black uppercase tracking-widest text-white shadow-lift transition"
+                      >
+                          Save Changes
+                      </button>
+                  </div>
               </div>
           </div>
-          <h2 className="text-2xl font-black italic tracking-tighter uppercase text-gray-900">{user.email?.split("@")[0]}</h2>
-          <div className="mt-3 flex items-center gap-3">
-              <span className="bg-gray-100 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest text-gray-500">Elite Member</span>
-              <div className="h-1.5 w-1.5 rounded-full bg-gray-200" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
-                  <Sparkles className="h-3 w-3 fill-current" /> 1,240 pts
+      )}
+
+      {/* Profile Header */}
+      <div className="bg-white px-8 pt-10 pb-10 rounded-b-[60px] shadow-sm border-b border-gray-50">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative mb-5 group cursor-pointer" onClick={() => setShowCustomizer(true)}>
+              <div className="h-24 w-24 overflow-hidden rounded-[36px] bg-primary p-1 shadow-xl ring-4 ring-white transition-transform group-hover:scale-105">
+                <img
+                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.avatarSeed === "default" ? user.email : profile.avatarSeed}`}
+                  alt="avatar"
+                  className="h-full w-full rounded-[34px] bg-white"
+                />
+              </div>
+              <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-primary flex items-center justify-center text-white border-4 border-white shadow-lift">
+                  <span className="text-xs">{profile.emoji}</span>
+              </div>
+          </div>
+          <h2 className="text-xl font-black italic tracking-tighter uppercase text-gray-900">{user.email?.split("@")[0]}</h2>
+          <div className="mt-2.5 flex items-center gap-3">
+              <span className="bg-gray-100 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest text-gray-500">Elite Member</span>
+              <div className="h-1 w-1 rounded-full bg-gray-200" />
+              <span className="text-[8px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
+                  <Sparkles className="h-3 w-3 fill-current" /> {profile.streakCount * 100 + 1240} pts
               </span>
           </div>
         </div>
@@ -122,23 +176,32 @@ function ProfilePage() {
 
       <div className="px-6 -mt-8 space-y-6">
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-50 flex items-center gap-4">
-                <div className="h-10 w-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
-                    <History className="h-5 w-5" />
+        <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white p-4 rounded-[28px] shadow-sm border border-gray-50 flex flex-col items-center gap-2 text-center">
+                <div className="h-8 w-8 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+                    <Zap className="h-4 w-4 fill-current" />
                 </div>
                 <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase">History</p>
-                    <p className="text-sm font-black text-gray-900">42 Titles</p>
+                    <p className="text-[8px] font-black text-gray-400 uppercase">Streak</p>
+                    <p className="text-xs font-black text-gray-900">{profile.streakCount} Days</p>
                 </div>
             </div>
-            <div className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-50 flex items-center gap-4">
-                <div className="h-10 w-10 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-500">
-                    <Download className="h-5 w-5" />
+            <div className="bg-white p-4 rounded-[28px] shadow-sm border border-gray-50 flex flex-col items-center gap-2 text-center">
+                <div className="h-8 w-8 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                    <History className="h-4 w-4" />
                 </div>
                 <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase">Saved</p>
-                    <p className="text-sm font-black text-gray-900">12 Clips</p>
+                    <p className="text-[8px] font-black text-gray-400 uppercase">History</p>
+                    <p className="text-xs font-black text-gray-900">42</p>
+                </div>
+            </div>
+            <div className="bg-white p-4 rounded-[28px] shadow-sm border border-gray-50 flex flex-col items-center gap-2 text-center">
+                <div className="h-8 w-8 rounded-xl bg-pink-500/10 flex items-center justify-center text-pink-500">
+                    <Download className="h-4 w-4" />
+                </div>
+                <div>
+                    <p className="text-[8px] font-black text-gray-400 uppercase">Saved</p>
+                    <p className="text-xs font-black text-gray-900">12</p>
                 </div>
             </div>
         </div>

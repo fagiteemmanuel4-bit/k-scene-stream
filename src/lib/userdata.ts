@@ -119,3 +119,68 @@ export function useSettings() {
 
   return { settings, update };
 }
+
+// User Profile Customization
+export type UserProfile = {
+  emoji: string;
+  avatarSeed: string;
+  streakCount: number;
+  lastVisit: string; // YYYY-MM-DD
+};
+
+const PROFILE_KEY = "kscene_profile_v1";
+const PROFILE_DEFAULTS: UserProfile = {
+  emoji: "🔥",
+  avatarSeed: "default",
+  streakCount: 0,
+  lastVisit: "",
+};
+
+export function useUserProfile() {
+  const [profile, setProfile] = useState<UserProfile>(() => {
+    if (typeof window === "undefined") return PROFILE_DEFAULTS;
+    try {
+      const data = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+      return { ...PROFILE_DEFAULTS, ...data };
+    } catch {
+      return PROFILE_DEFAULTS;
+    }
+  });
+
+  const updateProfile = useCallback((patch: Partial<UserProfile>) => {
+    setProfile((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(next));
+      window.dispatchEvent(new Event("kscene:profile"));
+      return next;
+    });
+  }, []);
+
+  const checkStreak = useCallback(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (profile.lastVisit === today) return;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    let newStreak = 1;
+    if (profile.lastVisit === yesterdayStr) {
+      newStreak = profile.streakCount + 1;
+    }
+
+    updateProfile({ streakCount: newStreak, lastVisit: today });
+  }, [profile.lastVisit, profile.streakCount, updateProfile]);
+
+  useEffect(() => {
+    checkStreak();
+    const h = () => {
+      const data = JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}");
+      setProfile((prev) => ({ ...prev, ...data }));
+    };
+    window.addEventListener("kscene:profile", h);
+    return () => window.removeEventListener("kscene:profile", h);
+  }, []);
+
+  return { profile, updateProfile };
+}
