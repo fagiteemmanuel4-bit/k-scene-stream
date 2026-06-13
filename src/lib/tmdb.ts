@@ -1,8 +1,10 @@
 const API_KEY = "e39d09282fd73792b1e8110c4861ee7f";
 const BASE = "https://api.themoviedb.org/3";
 
-export const img = (path?: string | null, size: "w200" | "w300" | "w500" | "w780" | "original" = "w500") =>
-  path ? `https://image.tmdb.org/t/p/${size}${path}` : "";
+export const img = (
+  path?: string | null,
+  size: "w92" | "w185" | "w200" | "w300" | "w500" | "w780" | "original" = "w500",
+) => (path ? `https://image.tmdb.org/t/p/${size}${path}` : "");
 
 export type Title = {
   id: number;
@@ -39,8 +41,8 @@ export const getTrendingKDrama = () =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, sort_by: "popularity.desc", page: 1 })
     .then((d) => d.results);
 
-export const getPopularKDrama = () =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page: 2 }).then((d) => d.results);
+export const getPopularKDrama = (page = 2) =>
+  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) => d.results);
 
 export const getTopRatedKDrama = () =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, sort_by: "vote_average.desc", "vote_count.gte": 200 })
