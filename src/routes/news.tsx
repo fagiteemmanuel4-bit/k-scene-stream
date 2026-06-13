@@ -16,7 +16,7 @@ export const Route = createFileRoute("/news")({
   component: NewsPage,
 });
 
-const API = import.meta.env.VITE_MOVIEBOX_API_URL || "http://localhost:8000";
+const API = import.meta.env.VITE_MOVIEBOX_API_URL || "";
 
 function NewsPage() {
   const [category, setCategory] = useState("BREAKING");

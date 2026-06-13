@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 import os
 import random
+from vidsrc_extractor import extract_vidsrc
 
 session = MovieBoxHttpClient()
 
@@ -127,6 +128,16 @@ async def get_shorts():
     except Exception as e:
         print(f"Error in shorts: {e}")
         return []
+
+@app.get("/vidsrc")
+async def get_vidsrc(tmdb_id: str, is_tv: bool = False, s: int = 1, e: int = 1):
+    try:
+        result = extract_vidsrc(tmdb_id, is_tv, s, e)
+        if result:
+            return result
+        raise HTTPException(status_code=404, detail="No stream found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/artists")
 async def get_artists():

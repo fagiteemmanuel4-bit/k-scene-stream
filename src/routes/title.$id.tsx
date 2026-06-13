@@ -251,7 +251,7 @@ function TitlePage() {
                 <div className="absolute inset-0 h-full w-full pointer-events-none">
                     <iframe
                         className="absolute top-1/2 left-1/2 w-[150%] h-[150%] -translate-x-1/2 -translate-y-1/2"
-                        src={`https://www.youtube.com/embed/${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}?autoplay=1&mute=1&controls=0&loop=1&playlist=${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`}
+                        src={`https://www.youtube.com/embed/${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}?autoplay=1&mute=0&controls=0&loop=1&playlist=${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`}
                         allow="autoplay; encrypted-media"
                         title="Trailer Preview"
                     />
@@ -267,7 +267,7 @@ function TitlePage() {
             <div className="relative flex flex-col items-center gap-4 text-center text-white px-6">
               <button
                 onClick={() => seasonQ.data?.episodes?.[0] && handlePlayEpisode(seasonQ.data.episodes[0].episode_number, seasonQ.data.episodes[0].name)}
-                className="h-20 w-20 rounded-full bg-primary flex items-center justify-center text-3xl shadow-glow hover:scale-110 transition active:scale-95"
+                className="h-20 w-20 rounded-full bg-primary flex items-center justify-center text-3xl shadow-glow hover:scale-110 transition active:scale-95 z-10"
               >
                 <Play className="h-8 w-8 fill-white translate-x-0.5" />
               </button>

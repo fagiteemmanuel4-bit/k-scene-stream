@@ -18,7 +18,7 @@ export const Route = createFileRoute("/shorts")({
   component: ShortsPage,
 });
 
-const API = import.meta.env.VITE_MOVIEBOX_API_URL || "http://localhost:8000";
+const API = import.meta.env.VITE_MOVIEBOX_API_URL || "";
 
 function ShortsPage() {
   const { data, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage } = useInfiniteQuery({
