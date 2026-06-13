@@ -15,10 +15,22 @@ export type StreamResult = {
   subtitles: SubtitleTrack[];
 };
 
+export interface MovieboxSearchResult {
+  items: Array<{
+    subject_id: string;
+    title: string;
+    cover?: { url: string };
+  }>;
+  pager: {
+    has_more: boolean;
+  };
+}
+
 export async function searchMoviebox(query: string) {
   const res = await fetch(`${MOVIEBOX_API}/search?q=${encodeURIComponent(query)}`);
   if (!res.ok) return null;
-  return res.json();
+  const data: MovieboxSearchResult = await res.json();
+  return data;
 }
 
 export async function getMovieboxDetails(subjectId: string) {
@@ -27,35 +39,45 @@ export async function getMovieboxDetails(subjectId: string) {
   return res.json();
 }
 
-export async function getMovieboxStream(subjectId: string, season: number = 0, episode: number = 0): Promise<StreamResult> {
+export async function getMovieboxStream(
+  subjectId: string,
+  season: number = 0,
+  episode: number = 0,
+): Promise<StreamResult> {
   try {
-    const res = await fetch(`${MOVIEBOX_API}/play?subject_id=${subjectId}&season=${season}&episode=${episode}`);
+    const res = await fetch(
+      `${MOVIEBOX_API}/play?subject_id=${subjectId}&season=${season}&episode=${episode}`,
+    );
     if (!res.ok) return { sources: [], subtitles: [] };
     const data = await res.json();
 
     const sources: StreamSource[] = [];
     if (data.play_url) {
-        sources.push({
-            url: data.play_url,
-            quality: "Auto",
-            isM3U8: data.play_url.includes(".m3u8") || data.play_url.includes(".mpd"),
-            label: "Main Stream"
-        });
+      sources.push({
+        url: data.play_url,
+        quality: "Auto",
+        isM3U8: data.play_url.includes(".m3u8") || data.play_url.includes(".mpd"),
+        label: "Main Stream",
+      });
     }
 
     // Attempt to get subtitles if resourceId is available
     let subtitles: SubtitleTrack[] = [];
     if (data.resourceId) {
-        try {
-            const subRes = await fetch(`${MOVIEBOX_API}/subtitles?subject_id=${subjectId}&resource_id=${data.resourceId}`);
-            if (subRes.ok) {
-                const subData = await subRes.json();
-                subtitles = (subData.subtitles || []).map((s: any) => ({
-                    url: s.url,
-                    lang: s.lang
-                }));
-            }
-        } catch(e) {}
+      try {
+        const subRes = await fetch(
+          `${MOVIEBOX_API}/subtitles?subject_id=${subjectId}&resource_id=${data.resourceId}`,
+        );
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          subtitles = (subData.subtitles || []).map((s: { url: string; lang: string }) => ({
+            url: s.url,
+            lang: s.lang,
+          }));
+        }
+      } catch (err) {
+        console.error("[Moviebox] Subtitle fetch failed", err);
+      }
     }
 
     return { sources, subtitles };
@@ -66,13 +88,13 @@ export async function getMovieboxStream(subjectId: string, season: number = 0, e
 }
 
 // Legacy fallback for Consumet-style API
-async function fetchWithTimeout(url: string, options: any = {}, timeout = 10000) {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = 10000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
     const response = await fetch(url, {
       ...options,
-      signal: controller.signal
+      signal: controller.signal,
     });
     clearTimeout(id);
     return response;
@@ -82,22 +104,37 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 10000)
   }
 }
 
-export async function getVidSrcStream(tmdbId: number, isTv: boolean = false, s: number = 1, e: number = 1): Promise<StreamResult> {
+export interface VidSrcResult {
+  url: string;
+  quality?: string;
+  provider?: string;
+}
+
+export async function getVidSrcStream(
+  tmdbId: number,
+  isTv: boolean = false,
+  s: number = 1,
+  e: number = 1,
+): Promise<StreamResult> {
   try {
     const res = await fetch(`${MOVIEBOX_API}/vidsrc?tmdb_id=${tmdbId}&is_tv=${isTv}&s=${s}&e=${e}`);
     if (res.ok) {
-        const data = await res.json();
-        return {
-            sources: [{
-                url: data.url,
-                quality: data.quality || "HD",
-                isM3U8: data.url.includes(".m3u8"),
-                label: data.provider || "VidSrc"
-            }],
-            subtitles: []
-        };
+      const data: VidSrcResult = await res.json();
+      return {
+        sources: [
+          {
+            url: data.url,
+            quality: data.quality || "HD",
+            isM3U8: data.url.includes(".m3u8"),
+            label: data.provider || "VidSrc",
+          },
+        ],
+        subtitles: [],
+      };
     }
-  } catch(e) {}
+  } catch (err) {
+    console.error("[VidSrc] Extraction fetch failed", err);
+  }
   return { sources: [], subtitles: [] };
 }
 
@@ -105,7 +142,7 @@ export async function getEpisodeStream(
   tmdbId: number,
   season: number,
   episode: number,
-  title: string
+  title: string,
 ): Promise<StreamResult> {
   console.log(`[Stream] Fetching for ${title} S${season}E${episode}...`);
 
@@ -124,32 +161,40 @@ export async function getEpisodeStream(
 
   // Try VidSrc Extraction first for high quality ad-free stream
   try {
-      const vidsrc = await getVidSrcStream(tmdbId, true, season, episode);
-      if (vidsrc.sources.length > 0) return vidsrc;
-  } catch(e) {}
+    const vidsrc = await getVidSrcStream(tmdbId, true, season, episode);
+    if (vidsrc.sources.length > 0) return vidsrc;
+  } catch (err) {
+    console.error("[Stream] VidSrc extraction failed", err);
+  }
 
   // Fallback to Xyra if Moviebox fails
   const XYRA_URL = "https://xyra.stream";
   const primaryId = `${tmdbId}-${season}-${episode}`;
   try {
     console.log(`[Stream] Falling back to Xyra for ${primaryId}`);
-    const res = await fetchWithTimeout(`${XYRA_URL}/stream?api_key=freekey&episode_id=${primaryId}`);
+    const res = await fetchWithTimeout(
+      `${XYRA_URL}/stream?api_key=freekey&episode_id=${primaryId}`,
+    );
     if (res.ok) {
-        const data = await res.json();
-        return {
-            sources: (data.sources || []).map((s: any) => ({
-                url: s.url,
-                quality: s.quality || "HD",
-                isM3U8: s.url.includes(".m3u8"),
-                label: s.quality
-            })),
-            subtitles: (data.subtitles || []).map((sub: any) => ({
-                url: sub.url,
-                lang: sub.lang || sub.language
-            }))
-        };
+      const data = await res.json();
+      return {
+        sources: (data.sources || []).map((s: { url: string; quality?: string }) => ({
+          url: s.url,
+          quality: s.quality || "HD",
+          isM3U8: s.url.includes(".m3u8"),
+          label: s.quality,
+        })),
+        subtitles: (data.subtitles || []).map(
+          (sub: { url: string; lang?: string; language?: string }) => ({
+            url: sub.url,
+            lang: sub.lang || sub.language || "Unknown",
+          }),
+        ),
+      };
     }
-  } catch(e) {}
+  } catch (e) {
+    console.error("[Stream] Xyra fallback failed", e);
+  }
 
   return { sources: [], subtitles: [] };
 }

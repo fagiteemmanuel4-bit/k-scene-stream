@@ -1,14 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Bookmark,
-  Share2,
-  Clock,
-  Flame,
-  TrendingUp,
-  ArrowRight,
-  ExternalLink
-} from "lucide-react";
+import { Bookmark, Share2, Clock, Flame, TrendingUp, ArrowRight, ExternalLink } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/news")({
@@ -42,9 +34,11 @@ function NewsPage() {
     <div className="min-h-screen bg-[#FDFDFD] pb-32">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-white/70 px-6 py-6 backdrop-blur-xl border-b border-gray-50 flex items-center justify-between">
-        <h1 className="text-3xl font-[1000] italic tracking-tighter text-gray-900 leading-none">K·BUZZ</h1>
+        <h1 className="text-3xl font-[1000] italic tracking-tighter text-gray-900 leading-none">
+          K·BUZZ
+        </h1>
         <button className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-            <TrendingUp className="h-5 w-5" />
+          <TrendingUp className="h-5 w-5" />
         </button>
       </div>
 
@@ -60,14 +54,16 @@ function NewsPage() {
                 : "bg-gray-100 text-gray-400 hover:bg-gray-200"
             }`}
           >
-            {category === c && <Flame className="mr-2 inline-block h-3.5 w-3.5 fill-current align-middle" />}
+            {category === c && (
+              <Flame className="mr-2 inline-block h-3.5 w-3.5 fill-current align-middle" />
+            )}
             {c}
           </button>
         ))}
       </div>
 
       <div className="space-y-10 px-6 mt-4">
-        {news?.map((item: any, i: number) => (
+        {news?.map((item: NewsItem, i: number) => (
           <NewsCard key={`${item.id}-${i}`} item={item} />
         ))}
       </div>
@@ -75,7 +71,17 @@ function NewsPage() {
   );
 }
 
-function NewsCard({ item }: { item: any }) {
+interface NewsItem {
+  id: string;
+  title: string;
+  content: string;
+  source: string;
+  image?: string;
+  viewers: number;
+  timestamp: string;
+}
+
+function NewsCard({ item }: { item: NewsItem }) {
   return (
     <div className="group animate-in fade-in slide-in-from-bottom-10 duration-1000">
       <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[40px] bg-gray-100 shadow-xl border border-gray-50">
@@ -91,9 +97,9 @@ function NewsCard({ item }: { item: any }) {
           </div>
         )}
         <div className="absolute top-6 left-6">
-            <span className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-primary shadow-sm border border-white">
-                {item.source}
-            </span>
+          <span className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-primary shadow-sm border border-white">
+            {item.source}
+          </span>
         </div>
       </div>
 

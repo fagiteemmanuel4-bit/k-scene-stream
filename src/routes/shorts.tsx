@@ -47,7 +47,17 @@ function ShortsPage() {
     );
   }
 
-  const allShorts = data?.pages.flat() || [];
+  interface ShortItem {
+    id: string;
+    name: string;
+    poster_path?: string;
+    backdrop_path: string;
+    content: string;
+    likes: number;
+    shares: number;
+  }
+
+  const allShorts = (data?.pages.flat() as ShortItem[]) || [];
 
   return (
     <div className="min-h-screen bg-white pb-32">
@@ -65,16 +75,16 @@ function ShortsPage() {
         ))}
 
         <div ref={ref} className="h-20 flex items-center justify-center">
-            {(hasNextPage || isFetchingNextPage) && (
-                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            )}
+          {(hasNextPage || isFetchingNextPage) && (
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function ShortFeedItem({ t }: { t: any }) {
+function ShortFeedItem({ t }: { t: ShortItem }) {
   const [liked, setLiked] = useState(false);
   const [retweeted, setRetweeted] = useState(false);
 
@@ -95,7 +105,9 @@ function ShortFeedItem({ t }: { t: any }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="truncate font-black text-gray-900 text-sm uppercase italic tracking-tight">{t.name}</span>
+              <span className="truncate font-black text-gray-900 text-sm uppercase italic tracking-tight">
+                {t.name}
+              </span>
               <div className="h-1 w-1 rounded-full bg-gray-200 shrink-0" />
               <span className="shrink-0 text-[10px] font-bold text-gray-400">Verified · 5m</span>
             </div>
@@ -107,24 +119,20 @@ function ShortFeedItem({ t }: { t: any }) {
           </p>
 
           <div className="mt-4 relative aspect-[9/16] max-h-[500px] w-full overflow-hidden rounded-[32px] bg-black shadow-2xl group">
-              {t.backdrop_path && (
-                  <img
-                    src={t.backdrop_path}
-                    className="h-full w-full object-cover opacity-80"
-                    alt=""
-                  />
-              )}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="rounded-full bg-white/10 p-5 backdrop-blur-xl border border-white/20 shadow-glow">
-                  <Play className="h-10 w-10 fill-white text-white translate-x-1" />
-                </div>
+            {t.backdrop_path && (
+              <img src={t.backdrop_path} className="h-full w-full object-cover opacity-80" alt="" />
+            )}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="rounded-full bg-white/10 p-5 backdrop-blur-xl border border-white/20 shadow-glow">
+                <Play className="h-10 w-10 fill-white text-white translate-x-1" />
               </div>
+            </div>
 
-              <div className="absolute top-4 left-4">
-                  <span className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black text-white border border-white/10">
-                      <Zap className="h-3 w-3 fill-primary text-primary" /> LIVE FEED
-                  </span>
-              </div>
+            <div className="absolute top-4 left-4">
+              <span className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full text-[10px] font-black text-white border border-white/10">
+                <Zap className="h-3 w-3 fill-primary text-primary" /> LIVE FEED
+              </span>
+            </div>
 
             <Link
               to="/title/$id"
@@ -152,7 +160,9 @@ function ShortFeedItem({ t }: { t: any }) {
               className={`flex items-center gap-2 transition-colors ${liked ? "text-pink-500" : "hover:text-pink-500"}`}
             >
               <Heart className={`h-4.5 w-4.5 ${liked ? "fill-current" : ""}`} />
-              <span className="text-[10px]">{liked ? (likes + 1).toLocaleString() : likes.toLocaleString()}</span>
+              <span className="text-[10px]">
+                {liked ? (likes + 1).toLocaleString() : likes.toLocaleString()}
+              </span>
             </button>
             <button className="flex items-center gap-2 hover:text-primary transition-colors">
               <Share2 className="h-4.5 w-4.5" />

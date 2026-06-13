@@ -102,11 +102,11 @@ function TitlePage() {
       try {
         const result = await getEpisodeStream(tid, season, epNumber, title);
         if (!result || result.sources.length === 0) {
-            toast.error("No streaming sources found for this episode.");
-            setActiveStream(null);
+          toast.error("No streaming sources found for this episode.");
+          setActiveStream(null);
         } else {
-            setActiveStream(result);
-            setShowTrailer(false);
+          setActiveStream(result);
+          setShowTrailer(false);
         }
       } catch (e) {
         console.error("[Stream] Playback error:", e);
@@ -178,54 +178,67 @@ function TitlePage() {
 
       {/* Smart Download Dialog */}
       {showSmartDownload && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="w-full max-w-sm rounded-[40px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-xl font-black italic tracking-tighter uppercase">Smart Download</h3>
-                    <button onClick={() => setShowSmartDownload(false)} className="rounded-full bg-gray-50 p-2 text-gray-400 hover:text-primary">
-                        <X className="h-5 w-5" />
-                    </button>
-                  </div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-[40px] bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black italic tracking-tighter uppercase">
+                Smart Download
+              </h3>
+              <button
+                onClick={() => setShowSmartDownload(false)}
+                className="rounded-full bg-gray-50 p-2 text-gray-400 hover:text-primary"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-                  <div className="space-y-6">
-                      <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-3xl">
-                          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                              <FileVideo className="h-6 w-6" />
-                          </div>
-                          <div>
-                              <p className="text-[10px] font-black uppercase text-gray-400">Target Season</p>
-                              <p className="text-sm font-black text-gray-900">Season {season} ({seasonQ.data?.episodes?.length || 0} Episodes)</p>
-                          </div>
-                      </div>
-
-                      <div className="space-y-3">
-                          <p className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">Options</p>
-                          <button
-                            onClick={() => setWithSubtitles(!withSubtitles)}
-                            className={`flex w-full items-center justify-between rounded-3xl border p-4 transition-all ${withSubtitles ? "border-primary bg-primary/5 text-primary" : "border-gray-100 bg-white text-gray-400"}`}
-                          >
-                              <div className="flex items-center gap-3">
-                                  <Type className="h-5 w-5" />
-                                  <span className="text-sm font-black uppercase tracking-tight">Include Subtitles</span>
-                              </div>
-                              <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${withSubtitles ? "border-primary bg-primary" : "border-gray-200"}`}>
-                                  {withSubtitles && <Check className="h-3.5 w-3.5 text-white" />}
-                              </div>
-                          </button>
-                      </div>
-
-                      <button
-                        onClick={handleStartSmartDownload}
-                        className="w-full rounded-full bg-primary py-4 text-xs font-black uppercase tracking-widest text-white shadow-lift active:scale-95 transition"
-                      >
-                          Pack & Download Season
-                      </button>
-                      <p className="text-[9px] text-center font-bold text-gray-400 px-4 leading-relaxed">
-                          Note: This will package episodes in a folder format compatible with your device.
-                      </p>
-                  </div>
+            <div className="space-y-6">
+              <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-3xl">
+                <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                  <FileVideo className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-gray-400">Target Season</p>
+                  <p className="text-sm font-black text-gray-900">
+                    Season {season} ({seasonQ.data?.episodes?.length || 0} Episodes)
+                  </p>
+                </div>
               </div>
+
+              <div className="space-y-3">
+                <p className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">
+                  Options
+                </p>
+                <button
+                  onClick={() => setWithSubtitles(!withSubtitles)}
+                  className={`flex w-full items-center justify-between rounded-3xl border p-4 transition-all ${withSubtitles ? "border-primary bg-primary/5 text-primary" : "border-gray-100 bg-white text-gray-400"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Type className="h-5 w-5" />
+                    <span className="text-sm font-black uppercase tracking-tight">
+                      Include Subtitles
+                    </span>
+                  </div>
+                  <div
+                    className={`h-6 w-6 rounded-full border-2 flex items-center justify-center ${withSubtitles ? "border-primary bg-primary" : "border-gray-200"}`}
+                  >
+                    {withSubtitles && <Check className="h-3.5 w-3.5 text-white" />}
+                  </div>
+                </button>
+              </div>
+
+              <button
+                onClick={handleStartSmartDownload}
+                className="w-full rounded-full bg-primary py-4 text-xs font-black uppercase tracking-widest text-white shadow-lift active:scale-95 transition"
+              >
+                Pack & Download Season
+              </button>
+              <p className="text-[9px] text-center font-bold text-gray-400 px-4 leading-relaxed">
+                Note: This will package episodes in a folder format compatible with your device.
+              </p>
+            </div>
           </div>
+        </div>
       )}
 
       {/* ── FIXED PLAYER ── */}
@@ -234,7 +247,9 @@ function TitlePage() {
           <div className="flex aspect-video w-full items-center justify-center bg-gray-950">
             <div className="flex flex-col items-center gap-3 text-white">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <span className="text-sm font-black uppercase tracking-widest animate-pulse">Establishing Secure Stream…</span>
+              <span className="text-sm font-black uppercase tracking-widest animate-pulse">
+                Establishing Secure Stream…
+              </span>
             </div>
           </div>
         ) : activeStream ? (
@@ -247,33 +262,48 @@ function TitlePage() {
           />
         ) : (
           <div className="relative flex aspect-video w-full items-center justify-center bg-gray-950 group overflow-hidden">
-            {showTrailer && data.videos?.results?.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) ? (
-                <div className="absolute inset-0 h-full w-full pointer-events-none">
-                    <iframe
-                        className="absolute top-1/2 left-1/2 w-[150%] h-[150%] -translate-x-1/2 -translate-y-1/2"
-                        src={`https://www.youtube.com/embed/${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}?autoplay=1&mute=0&controls=0&loop=1&playlist=${data.videos.results.find(v => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`}
-                        allow="autoplay; encrypted-media"
-                        title="Trailer Preview"
-                    />
-                    <div className="absolute inset-0 bg-black/40" />
-                </div>
-            ) : data.backdrop_path && (
-              <img
-                src={img(data.backdrop_path, "w780")}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover opacity-30 transition-opacity group-hover:opacity-40"
-              />
+            {showTrailer &&
+            data.videos?.results?.find(
+              (v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"),
+            ) ? (
+              <div className="absolute inset-0 h-full w-full pointer-events-none">
+                <iframe
+                  className="absolute top-1/2 left-1/2 w-[150%] h-[150%] -translate-x-1/2 -translate-y-1/2"
+                  src={`https://www.youtube.com/embed/${data.videos.results.find((v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}?autoplay=1&mute=0&controls=0&loop=1&playlist=${data.videos.results.find((v) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser"))?.key}&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0`}
+                  allow="autoplay; encrypted-media"
+                  title="Trailer Preview"
+                />
+                <div className="absolute inset-0 bg-black/40" />
+              </div>
+            ) : (
+              data.backdrop_path && (
+                <img
+                  src={img(data.backdrop_path, "w780")}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover opacity-30 transition-opacity group-hover:opacity-40"
+                />
+              )
             )}
-            <div className="relative flex flex-col items-center gap-4 text-center text-white px-6">
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-black/10 px-6 text-center text-white opacity-0 transition-all duration-500 backdrop-blur-[2px] group-hover:opacity-100 group-hover:bg-black/30">
               <button
-                onClick={() => seasonQ.data?.episodes?.[0] && handlePlayEpisode(seasonQ.data.episodes[0].episode_number, seasonQ.data.episodes[0].name)}
-                className="h-20 w-20 rounded-full bg-primary flex items-center justify-center text-3xl shadow-glow hover:scale-110 transition active:scale-95 z-10"
+                onClick={() =>
+                  seasonQ.data?.episodes?.[0] &&
+                  handlePlayEpisode(
+                    seasonQ.data.episodes[0].episode_number,
+                    seasonQ.data.episodes[0].name,
+                  )
+                }
+                className="h-20 w-20 rounded-full bg-primary flex items-center justify-center text-3xl shadow-glow transition hover:scale-110 active:scale-95"
               >
                 <Play className="h-8 w-8 fill-white translate-x-0.5" />
               </button>
-              <div>
-                  <p className="text-sm font-black uppercase tracking-[0.3em] mb-1">Stream Content</p>
-                  <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Select an episode to begin playback</p>
+              <div className="max-w-xs">
+                <p className="mb-1 text-sm font-black uppercase tracking-[0.3em] drop-shadow-lg">
+                  Stream Content
+                </p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/90 drop-shadow-lg">
+                  Select an episode to begin playback
+                </p>
               </div>
             </div>
           </div>
@@ -282,12 +312,15 @@ function TitlePage() {
         {playingEp && (
           <div className="flex items-center justify-between bg-white px-5 py-4 border-b border-gray-100">
             <div className="flex items-center gap-3">
-                <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-[11px] font-black uppercase tracking-widest text-gray-900">
-                  PLAYING: S{season} E{playingEp.ep} — {playingEp.name}
-                </span>
+              <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[11px] font-black uppercase tracking-widest text-gray-900">
+                PLAYING: S{season} E{playingEp.ep} — {playingEp.name}
+              </span>
             </div>
-            <Link to="/" className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5 hover:underline">
+            <Link
+              to="/"
+              className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5 hover:underline"
+            >
               <ChevronLeft className="h-3.5 w-3.5" /> DASHBOARD
             </Link>
           </div>
@@ -300,21 +333,25 @@ function TitlePage() {
             {data.poster_path && (
               <div className="mx-auto w-36 shrink-0 md:mx-0">
                 <div className="relative group">
-                    <img
-                      src={img(data.poster_path, "w500")}
-                      alt={title}
-                      className="aspect-[2/3] w-full rounded-[40px] object-cover shadow-2xl ring-4 ring-white"
-                    />
-                    <div className="absolute -bottom-4 -right-4 h-14 w-14 rounded-full bg-primary flex items-center justify-center text-white shadow-lift font-black text-xs italic">
-                        {data.vote_average.toFixed(1)}
-                    </div>
+                  <img
+                    src={img(data.poster_path, "w500")}
+                    alt={title}
+                    className="aspect-[2/3] w-full rounded-[40px] object-cover shadow-2xl ring-4 ring-white"
+                  />
+                  <div className="absolute -bottom-4 -right-4 h-14 w-14 rounded-full bg-primary flex items-center justify-center text-white shadow-lift font-black text-xs italic">
+                    {data.vote_average.toFixed(1)}
+                  </div>
                 </div>
               </div>
             )}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap gap-3 mb-6">
-                 <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Global Premiere</span>
-                 <span className="bg-gray-100 text-gray-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">4K Ultra HD</span>
+                <span className="bg-primary/10 text-primary px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  Global Premiere
+                </span>
+                <span className="bg-gray-100 text-gray-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  4K Ultra HD
+                </span>
               </div>
               <h1 className="text-3xl md:text-4xl font-black italic tracking-tighter text-gray-900 leading-[0.9] uppercase">
                 {title}
@@ -344,16 +381,33 @@ function TitlePage() {
 
               <div className="mt-6 flex gap-3">
                 <button
-                  onClick={() => seasonQ.data?.episodes?.[0] && handlePlayEpisode(seasonQ.data.episodes[0].episode_number, seasonQ.data.episodes[0].name)}
+                  onClick={() =>
+                    seasonQ.data?.episodes?.[0] &&
+                    handlePlayEpisode(
+                      seasonQ.data.episodes[0].episode_number,
+                      seasonQ.data.episodes[0].name,
+                    )
+                  }
                   className="flex flex-1 items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-[10px] font-black uppercase tracking-widest text-white shadow-glow hover:brightness-110 active:scale-95 transition"
                 >
                   <Play className="h-3.5 w-3.5 fill-current" /> Watch Episode 1
                 </button>
                 <button
-                  onClick={() => toggle({ id: tid, name: title, poster_path: data.poster_path, vote_average: data.vote_average })}
+                  onClick={() =>
+                    toggle({
+                      id: tid,
+                      name: title,
+                      poster_path: data.poster_path,
+                      vote_average: data.vote_average,
+                    })
+                  }
                   className={`flex items-center gap-2 rounded-full border px-6 py-3.5 text-[10px] font-black uppercase tracking-widest transition-all ${saved ? "border-primary bg-primary/5 text-primary" : "border-gray-200 bg-gray-50 hover:border-primary hover:text-primary text-gray-400"}`}
                 >
-                  {saved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                  {saved ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
                   {saved ? "Saved" : "List"}
                 </button>
               </div>
@@ -361,17 +415,20 @@ function TitlePage() {
           </div>
 
           <div className="mt-12 bg-gray-50/50 p-8 rounded-[40px] border border-gray-100">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-4">Synopsis</h4>
-              <p className="text-sm font-medium leading-relaxed text-gray-600">
-                {data.overview}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {data.genres.map((g) => (
-                  <span key={g.id} className="rounded-full bg-white px-5 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm border border-gray-100">
-                    {g.name}
-                  </span>
-                ))}
-              </div>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-4">
+              Synopsis
+            </h4>
+            <p className="text-sm font-medium leading-relaxed text-gray-600">{data.overview}</p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {data.genres.map((g) => (
+                <span
+                  key={g.id}
+                  className="rounded-full bg-white px-5 py-2 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm border border-gray-100"
+                >
+                  {g.name}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -381,23 +438,25 @@ function TitlePage() {
             <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-2xl bg-primary flex items-center justify-center text-white shadow-lift">
-                    <Layers className="h-5 w-5" />
+                  <Layers className="h-5 w-5" />
                 </div>
-                <h2 className="text-2xl font-black italic tracking-tighter uppercase">Episode Guide</h2>
+                <h2 className="text-2xl font-black italic tracking-tighter uppercase">
+                  Episode Guide
+                </h2>
               </div>
               <div className="flex gap-4 w-full sm:w-auto">
                 <button
-                    onClick={() => setShowSmartDownload(true)}
-                    className="flex items-center gap-2 bg-green-500/10 text-green-600 px-5 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-500/20 hover:bg-green-500 hover:text-white transition"
+                  onClick={() => setShowSmartDownload(true)}
+                  className="flex items-center gap-2 bg-green-500/10 text-green-600 px-5 rounded-full text-[10px] font-black uppercase tracking-widest border border-green-500/20 hover:bg-green-500 hover:text-white transition"
                 >
-                    <Download className="h-4 w-4" /> Smart Download
+                  <Download className="h-4 w-4" /> Smart Download
                 </button>
                 <div className="w-48">
-                    <CustomSelect
-                      options={seasonOptions}
-                      value={season}
-                      onChange={(val) => setSeason(Number(val))}
-                    />
+                  <CustomSelect
+                    options={seasonOptions}
+                    value={season}
+                    onChange={(val) => setSeason(Number(val))}
+                  />
                 </div>
               </div>
             </div>
@@ -427,7 +486,11 @@ function TitlePage() {
                       />
                     ) : (
                       data.backdrop_path && (
-                        <img src={img(data.backdrop_path, "w300")} alt="" className="h-full w-full object-cover opacity-50" />
+                        <img
+                          src={img(data.backdrop_path, "w300")}
+                          alt=""
+                          className="h-full w-full object-cover opacity-50"
+                        />
                       )
                     )}
                     <div className="absolute inset-0 flex items-center justify-center bg-primary/40 opacity-0 transition-opacity group-hover:opacity-100 backdrop-blur-[2px]">
@@ -439,7 +502,9 @@ function TitlePage() {
                       <span className="text-[10px] font-black text-primary uppercase bg-primary/10 px-3 py-1 rounded-full">
                         EPISODE {ep.episode_number}
                       </span>
-                      <h3 className="truncate text-base font-black text-gray-900 uppercase italic tracking-tight">{ep.name}</h3>
+                      <h3 className="truncate text-base font-black text-gray-900 uppercase italic tracking-tight">
+                        {ep.name}
+                      </h3>
                     </div>
                     <p className="line-clamp-2 text-xs font-medium text-gray-400 leading-relaxed">
                       {ep.overview || "Deep narrative exploration awaits in this latest chapter."}
@@ -454,10 +519,15 @@ function TitlePage() {
         {/* Cast */}
         {cast.length > 0 && (
           <section className="bg-white border-b px-6 py-16">
-            <h2 className="mb-10 text-2xl font-black italic tracking-tighter uppercase text-center sm:text-left">Starring</h2>
+            <h2 className="mb-10 text-2xl font-black italic tracking-tighter uppercase text-center sm:text-left">
+              Starring
+            </h2>
             <div className="flex gap-8 overflow-x-auto scrollbar-hide pb-4">
               {cast.map((c) => (
-                <div key={c.id} className="flex w-24 shrink-0 flex-col items-center text-center group">
+                <div
+                  key={c.id}
+                  className="flex w-24 shrink-0 flex-col items-center text-center group"
+                >
                   <div className="h-24 w-24 overflow-hidden rounded-[32px] bg-gray-100 ring-4 ring-white shadow-lg transition-all group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:ring-primary/20">
                     {c.profile_path ? (
                       <img
@@ -485,8 +555,13 @@ function TitlePage() {
         {recs.length > 0 && (
           <section className="bg-[#FDFDFD] px-6 py-16">
             <div className="flex items-center justify-between mb-10">
-                <h2 className="text-2xl font-black italic tracking-tighter uppercase">Recommended</h2>
-                <Link to="/" className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline">Explore More</Link>
+              <h2 className="text-2xl font-black italic tracking-tighter uppercase">Recommended</h2>
+              <Link
+                to="/"
+                className="text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+              >
+                Explore More
+              </Link>
             </div>
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
               {recs.slice(0, 8).map((t) => (

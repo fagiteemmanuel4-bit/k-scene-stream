@@ -42,7 +42,7 @@ export function VideoPlayer({ streamResult, title, poster, onDownload, onSmartDo
         setActiveSource(source);
       }
     }
-  }, [streamResult, dataSaver]);
+  }, [streamResult, dataSaver, activeSource?.url]);
 
   useEffect(() => {
     if (!videoRef.current || !activeSource) return;
@@ -133,40 +133,40 @@ export function VideoPlayer({ streamResult, title, poster, onDownload, onSmartDo
     if (!activeSource) return;
 
     if (activeSource.url.includes(".m3u8")) {
-        toast.info("HLS Stream detected. Opening stream link...");
-        window.open(activeSource.url, '_blank');
-        return;
+      toast.info("HLS Stream detected. Opening stream link...");
+      window.open(activeSource.url, "_blank");
+      return;
     }
 
     toast.info("Preparing native download (Blob structure)...");
     console.log("[Download] Initiating fetch for:", activeSource.url);
     try {
-        const response = await fetch(activeSource.url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const response = await fetch(activeSource.url);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-        const blob = await response.blob();
-        console.log("[Download] Blob created, size:", blob.size);
+      const blob = await response.blob();
+      console.log("[Download] Blob created, size:", blob.size);
 
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        const fileName = `${title.replace(/[^a-z0-9]/gi, '_')}_${activeSource.quality}.mp4`;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      const fileName = `${title.replace(/[^a-z0-9]/gi, "_")}_${activeSource.quality}.mp4`;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
 
-        // Use a small timeout before revoking to ensure the browser has started the download
-        setTimeout(() => {
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        }, 100);
+      // Use a small timeout before revoking to ensure the browser has started the download
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
 
-        toast.success("Download started!");
+      toast.success("Download started!");
     } catch (error) {
-        console.error("[Download] Native download failed:", error);
-        toast.error("Native download failed. Trying fallback...");
-        window.open(activeSource.url, '_blank');
+      console.error("[Download] Native download failed:", error);
+      toast.error("Native download failed. Trying fallback...");
+      window.open(activeSource.url, "_blank");
     }
 
     if (onDownload) onDownload(activeSource.url, activeSource.quality);
@@ -186,14 +186,14 @@ export function VideoPlayer({ streamResult, title, poster, onDownload, onSmartDo
       <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16/9" }}>
         <video ref={videoRef} className="plyr-react plyr" playsInline poster={poster} />
         <div className="absolute top-4 left-4 flex gap-2 pointer-events-none">
-            <span className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-400/30">
-                <Shield className="h-3 w-3" /> AD-FREE
+          <span className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-400/30">
+            <Shield className="h-3 w-3" /> AD-FREE
+          </span>
+          {dataSaver && (
+            <span className="flex items-center gap-1 bg-primary/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-white shadow-lift">
+              <Zap className="h-3 w-3 fill-current" /> DATA SAVER
             </span>
-            {dataSaver && (
-                 <span className="flex items-center gap-1 bg-primary/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-white shadow-lift">
-                    <Zap className="h-3 w-3 fill-current" /> DATA SAVER
-                 </span>
-            )}
+          )}
         </div>
       </div>
 
@@ -228,18 +228,18 @@ export function VideoPlayer({ streamResult, title, poster, onDownload, onSmartDo
         ))}
 
         <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={onSmartDownload}
-              className="flex shrink-0 items-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-green-500 hover:bg-green-500 hover:text-white transition"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" /> Smart Download
-            </button>
-            <button
-              onClick={handleDownload}
-              className="flex shrink-0 items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white/50 hover:bg-primary hover:text-white transition"
-            >
-              <Download className="h-3.5 w-3.5" /> Download
-            </button>
+          <button
+            onClick={onSmartDownload}
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-green-500 hover:bg-green-500 hover:text-white transition"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" /> Smart Download
+          </button>
+          <button
+            onClick={handleDownload}
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white/50 hover:bg-primary hover:text-white transition"
+          >
+            <Download className="h-3.5 w-3.5" /> Download
+          </button>
         </div>
       </div>
     </div>

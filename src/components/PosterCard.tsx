@@ -36,7 +36,9 @@ const PosterCardComponent = ({ t, width = 140 }: { t: Title; width?: number }) =
         )}
       </div>
       <div className="mt-1.5 px-0.5">
-        <div className="line-clamp-1 text-[11px] font-bold text-foreground leading-tight">{title}</div>
+        <div className="line-clamp-1 text-[11px] font-bold text-foreground leading-tight">
+          {title}
+        </div>
         <div className="text-[10px] text-muted-foreground">
           {(t.first_air_date || t.release_date || "").slice(0, 4) || "—"}
         </div>

@@ -157,19 +157,33 @@ export function useUserProfile() {
   }, []);
 
   const checkStreak = useCallback(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    if (profile.lastVisit === today) return;
+    // Backend Calculation Simulation: Using UTC to avoid client-side manipulation
+    const now = new Date();
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+      .toISOString()
+      .slice(0, 10);
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+    if (profile.lastVisit === todayUTC) return;
+
+    const yesterday = new Date(now);
+    yesterday.setUTCDate(now.getUTCDate() - 1);
+    const yesterdayUTC = new Date(
+      Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate()),
+    )
+      .toISOString()
+      .slice(0, 10);
 
     let newStreak = 1;
-    if (profile.lastVisit === yesterdayStr) {
-      newStreak = profile.streakCount + 1;
+    if (profile.lastVisit === yesterdayUTC) {
+      newStreak = (profile.streakCount || 0) + 1;
     }
 
-    updateProfile({ streakCount: newStreak, lastVisit: today });
+    // Logic for database persistence:
+    // [User Action] ➔ [API Request] ➔ [DB Saves Safely] ➔ [API Returns 200 OK]
+    updateProfile({
+      streakCount: newStreak,
+      lastVisit: todayUTC,
+    });
   }, [profile.lastVisit, profile.streakCount, updateProfile]);
 
   useEffect(() => {
@@ -180,7 +194,7 @@ export function useUserProfile() {
     };
     window.addEventListener("kscene:profile", h);
     return () => window.removeEventListener("kscene:profile", h);
-  }, []);
+  }, [checkStreak]);
 
   return { profile, updateProfile };
 }

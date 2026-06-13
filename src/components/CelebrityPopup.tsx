@@ -3,16 +3,22 @@ import { X, Flame, ArrowRight, Zap, Star } from "lucide-react";
 
 const MOVIEBOX_API = import.meta.env.VITE_MOVIEBOX_API_URL || "";
 
+interface Artist {
+  name: string;
+  reason: string;
+  img: string;
+}
+
 export function CelebrityPopup() {
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<Artist | null>(null);
 
   useEffect(() => {
     const hasSeen = sessionStorage.getItem("celeb-popup-seen");
     if (!hasSeen) {
       fetch(`${MOVIEBOX_API}/artists`)
-        .then(res => res.json())
-        .then(res => {
+        .then((res) => res.json())
+        .then((res) => {
           if (res && res.length > 0) {
             setData(res[0]);
             setOpen(true);
@@ -38,19 +44,17 @@ export function CelebrityPopup() {
         </div>
 
         <div className="relative aspect-square w-full">
-          <img
-            src={data.img}
-            alt={data.name}
-            className="h-full w-full object-cover"
-          />
+          <img src={data.img} alt={data.name} className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
           <div className="absolute bottom-8 left-8 right-8 text-white">
             <div className="flex items-center gap-2 mb-3">
-                <span className="bg-primary px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lift">
-                    <Star className="h-3 w-3 fill-current" /> Trending Artist
-                </span>
+              <span className="bg-primary px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shadow-lift">
+                <Star className="h-3 w-3 fill-current" /> Trending Artist
+              </span>
             </div>
-            <h2 className="text-4xl font-black italic tracking-tighter uppercase leading-none mb-4">{data.name}</h2>
+            <h2 className="text-4xl font-black italic tracking-tighter uppercase leading-none mb-4">
+              {data.name}
+            </h2>
             <p className="text-sm font-bold text-white/80 leading-relaxed uppercase tracking-wide">
               {data.reason}
             </p>
@@ -58,15 +62,15 @@ export function CelebrityPopup() {
         </div>
 
         <div className="p-8 space-y-4">
-            <button
-              onClick={() => setOpen(false)}
-              className="flex w-full items-center justify-center gap-3 rounded-full bg-primary py-5 text-xs font-black uppercase tracking-widest text-white shadow-glow active:scale-95 transition"
-            >
-              Explore Profile <ArrowRight className="h-4 w-4" />
-            </button>
-            <p className="text-center text-[9px] font-black uppercase tracking-widest text-gray-400">
-                Join our community to see more daily K·Highlights
-            </p>
+          <button
+            onClick={() => setOpen(false)}
+            className="flex w-full items-center justify-center gap-3 rounded-full bg-primary py-5 text-xs font-black uppercase tracking-widest text-white shadow-glow active:scale-95 transition"
+          >
+            Explore Profile <ArrowRight className="h-4 w-4" />
+          </button>
+          <p className="text-center text-[9px] font-black uppercase tracking-widest text-gray-400">
+            Join our community to see more daily K·Highlights
+          </p>
         </div>
       </div>
     </div>
