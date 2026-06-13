@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { getEpisodeStream } from "@/lib/consumet";
 import { useWatchHistory, useDownloads } from "@/lib/userdata";
 import type { StreamResult } from "@/lib/consumet";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 export const Route = createFileRoute("/title/$id")({
   head: () => ({ meta: [{ title: "Watch — K·Scene" }] }),
@@ -114,12 +115,8 @@ function TitlePage() {
 
   if (isLoading || !data) {
     return (
-      <div>
-        <div className="aspect-video w-full animate-pulse bg-gray-200" />
-        <div className="p-4 space-y-3">
-          <div className="h-8 w-3/4 animate-pulse rounded-xl bg-gray-200" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
@@ -128,6 +125,10 @@ function TitlePage() {
   const recs = data.recommendations?.results || [];
   const title = data.name || data.title || "";
   const saved = has(tid);
+
+  const seasonOptions = (data.seasons || [])
+    .filter((s) => s.season_number > 0)
+    .map((s) => ({ value: s.season_number, label: s.name }));
 
   return (
     <div className="min-h-screen bg-white">
@@ -139,7 +140,7 @@ function TitlePage() {
           <div className="flex aspect-video w-full items-center justify-center bg-gray-950">
             <div className="flex flex-col items-center gap-3 text-white">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <span className="text-sm">Loading stream…</span>
+              <span className="text-sm font-black uppercase tracking-widest">Loading Stream…</span>
             </div>
           </div>
         ) : activeStream ? (
@@ -159,12 +160,16 @@ function TitlePage() {
               />
             )}
             <div className="relative flex flex-col items-center gap-3 text-center text-white px-6">
-              <div className="text-3xl">🎬</div>
-              <p className="text-sm font-semibold">Tap an episode below to start watching</p>
+              <div className="h-16 w-16 rounded-full bg-white/10 flex items-center justify-center text-4xl animate-pulse backdrop-blur-md">
+                🎬
+              </div>
+              <p className="text-sm font-black uppercase tracking-widest">
+                Select an episode to begin
+              </p>
               {!user && (
                 <button
                   onClick={() => setShowAuth(true)}
-                  className="mt-1 rounded-full bg-primary px-5 py-2 text-sm font-bold text-white"
+                  className="mt-1 rounded-full bg-primary px-8 py-3 text-xs font-black uppercase tracking-widest text-white shadow-lift"
                 >
                   Sign in to Watch
                 </button>
@@ -175,15 +180,15 @@ function TitlePage() {
 
         {/* Now playing bar */}
         {playingEp && (
-          <div className="flex items-center justify-between bg-primary/10 px-4 py-2 border-t border-primary/20">
-            <span className="text-xs font-semibold text-primary">
+          <div className="flex items-center justify-between bg-primary/10 px-4 py-3 border-t border-primary/20 backdrop-blur-md">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary">
               ▶ S{season} E{playingEp.ep} — {playingEp.name}
             </span>
             <Link
               to="/"
-              className="text-xs text-gray-500 hover:text-primary flex items-center gap-1"
+              className="text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-primary flex items-center gap-1"
             >
-              <ChevronLeft className="h-3 w-3" /> Home
+              <ChevronLeft className="h-3.5 w-3.5" /> Home
             </Link>
           </div>
         )}
@@ -192,41 +197,47 @@ function TitlePage() {
       {/* ── SCROLLABLE CONTENT BELOW ── */}
       <div className="overflow-y-auto">
         {/* Title info */}
-        <div className="px-4 pt-4 pb-2 border-b bg-white">
-          <div className="flex items-start gap-3">
+        <div className="px-6 pt-8 pb-6 border-b bg-white">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
             {data.poster_path && (
-              <img
-                src={img(data.poster_path, "w185")}
-                alt={title}
-                className="h-20 w-14 shrink-0 rounded-xl object-cover shadow-card"
-              />
+              <div className="mx-auto w-40 shrink-0 sm:mx-0">
+                <img
+                  src={img(data.poster_path, "w500")}
+                  alt={title}
+                  className="aspect-[2/3] w-full rounded-[32px] object-cover shadow-2xl ring-1 ring-gray-100"
+                />
+              </div>
             )}
             <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-black leading-tight">{title}</h1>
+              <h1 className="text-4xl font-black italic tracking-tighter text-gray-900 leading-[0.9]">
+                {title.toUpperCase()}
+              </h1>
               {data.tagline && (
-                <p className="mt-0.5 text-xs italic text-gray-500 line-clamp-1">"{data.tagline}"</p>
+                <p className="mt-4 text-sm font-bold italic text-primary/80 uppercase tracking-widest">
+                  {data.tagline}
+                </p>
               )}
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                <span className="flex items-center gap-1 font-bold text-gray-900">
+              <div className="mt-6 flex flex-wrap items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                <span className="flex items-center gap-1.5 text-gray-900">
                   <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
                   {data.vote_average.toFixed(1)}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
                   {(data.first_air_date || "").slice(0, 4)}
                 </span>
                 {data.episode_run_time?.[0] && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {data.episode_run_time[0]}m
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5" />
+                    {data.episode_run_time[0]} MIN
                   </span>
                 )}
               </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {data.genres.slice(0, 3).map((g) => (
+              <div className="mt-6 flex flex-wrap gap-2">
+                {data.genres.map((g) => (
                   <span
                     key={g.id}
-                    className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600"
+                    className="rounded-full bg-gray-50 px-4 py-1.5 text-[9px] font-black uppercase tracking-widest text-gray-500 ring-1 ring-gray-100"
                   >
                     {g.name}
                   </span>
@@ -235,8 +246,7 @@ function TitlePage() {
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="mt-3 flex gap-2">
+          <div className="mt-10 flex gap-4">
             <button
               onClick={() =>
                 seasonQ.data?.episodes?.[0] &&
@@ -245,9 +255,9 @@ function TitlePage() {
                   seasonQ.data.episodes[0].name,
                 )
               }
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-bold text-white shadow-lift transition hover:brightness-110"
+              className="flex flex-1 items-center justify-center gap-3 rounded-[24px] bg-primary py-4 text-xs font-black uppercase tracking-widest text-white shadow-lift transition hover:brightness-110 active:scale-95"
             >
-              <Play className="h-4 w-4 fill-current" /> Play EP 1
+              <Play className="h-4 w-4 fill-current" /> Play Episode 1
             </button>
             <button
               onClick={() =>
@@ -258,122 +268,99 @@ function TitlePage() {
                   vote_average: data.vote_average,
                 })
               }
-              className={`flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${saved ? "border-primary bg-primary/5 text-primary" : "border-gray-200 hover:border-primary hover:text-primary"}`}
+              className={`flex items-center gap-3 rounded-[24px] border px-6 py-4 text-xs font-black uppercase tracking-widest transition-all ${saved ? "border-primary bg-primary/5 text-primary" : "border-gray-200 bg-gray-50 hover:border-primary hover:text-primary text-gray-400"}`}
             >
               {saved ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
               {saved ? "Saved" : "Save"}
             </button>
           </div>
 
-          {/* Overview */}
-          <p className="mt-3 text-sm leading-relaxed text-gray-600 line-clamp-3">{data.overview}</p>
+          <p className="mt-8 text-sm font-medium leading-relaxed text-gray-600 line-clamp-4">
+            {data.overview}
+          </p>
         </div>
 
-        {/* Episodes */}
+        {/* Episodes Section */}
         {!!data.seasons?.length && (
-          <section className="bg-white border-b">
-            <div
-              className="flex cursor-pointer items-center justify-between px-4 py-3"
-              onClick={() => setShowEps((p) => !p)}
-            >
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-primary" />
-                <h2 className="font-bold">Episodes</h2>
+          <section className="bg-white border-b px-6 py-10">
+            <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <Layers className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-black italic tracking-tighter uppercase">Episodes</h2>
               </div>
-              <div className="flex items-center gap-2">
-                <select
+              <div className="w-full sm:w-64">
+                <CustomSelect
+                  options={seasonOptions}
                   value={season}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) => setSeason(Number(e.target.value))}
-                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-bold outline-none"
-                >
-                  {data
-                    .seasons!.filter((s) => s.season_number > 0)
-                    .map((s) => (
-                      <option key={s.id} value={s.season_number}>
-                        {s.name}
-                      </option>
-                    ))}
-                </select>
-                <span className="text-gray-400 text-sm">{showEps ? "▲" : "▼"}</span>
+                  onChange={(val) => setSeason(Number(val))}
+                />
               </div>
             </div>
 
-            {showEps && (
-              <div className="px-4 pb-4 space-y-2">
-                {seasonQ.isLoading &&
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-20 animate-pulse rounded-xl bg-gray-100" />
-                  ))}
-                {seasonQ.data?.episodes.map((ep) => (
-                  <div
-                    key={ep.id}
-                    onClick={() => handlePlayEpisode(ep.episode_number, ep.name)}
-                    className={`group flex cursor-pointer gap-3 rounded-xl border p-3 transition hover:border-primary hover:shadow-card ${
-                      playingEp?.ep === ep.episode_number
-                        ? "border-primary bg-primary/5"
-                        : "border-gray-100 bg-gray-50"
-                    }`}
-                  >
-                    <div className="relative h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-gray-200">
-                      {ep.still_path ? (
+            <div className="space-y-4">
+              {seasonQ.isLoading &&
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-24 animate-pulse rounded-3xl bg-gray-50" />
+                ))}
+              {seasonQ.data?.episodes.map((ep) => (
+                <div
+                  key={ep.id}
+                  onClick={() => handlePlayEpisode(ep.episode_number, ep.name)}
+                  className={`group flex cursor-pointer gap-4 rounded-[32px] border p-4 transition-all duration-300 hover:shadow-xl ${
+                    playingEp?.ep === ep.episode_number
+                      ? "border-primary bg-primary/5"
+                      : "border-gray-100 bg-gray-50 hover:border-primary/30"
+                  }`}
+                >
+                  <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-2xl bg-gray-200 shadow-sm">
+                    {ep.still_path ? (
+                      <img
+                        src={img(ep.still_path, "w300")}
+                        alt={ep.name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    ) : (
+                      data.backdrop_path && (
                         <img
-                          src={img(ep.still_path, "w300")}
-                          alt={ep.name}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
+                          src={img(data.backdrop_path, "w300")}
+                          alt=""
+                          className="h-full w-full object-cover opacity-50"
                         />
-                      ) : (
-                        data.backdrop_path && (
-                          <img
-                            src={img(data.backdrop_path, "w300")}
-                            alt=""
-                            className="h-full w-full object-cover opacity-50"
-                          />
-                        )
-                      )}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition group-hover:opacity-100">
-                        <Play className="h-5 w-5 fill-white text-white" />
-                      </div>
-                      {playingEp?.ep === ep.episode_number && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-primary/30">
-                          <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="shrink-0 text-[10px] font-black text-primary">
-                          E{ep.episode_number}
-                        </span>
-                        <span className="line-clamp-1 text-sm font-bold text-gray-900">
-                          {ep.name}
-                        </span>
-                      </div>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">
-                        {ep.overview || "No description."}
-                      </p>
-                      {ep.runtime && (
-                        <span className="mt-1 inline-block text-[10px] text-gray-400">
-                          {ep.runtime}m
-                        </span>
-                      )}
+                      )
+                    )}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100 backdrop-blur-[2px]">
+                      <Play className="h-6 w-6 fill-white text-white" />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="min-w-0 flex-1 py-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black text-primary uppercase">
+                        EP {ep.episode_number}
+                      </span>
+                      <h3 className="truncate text-sm font-black text-gray-900">{ep.name}</h3>
+                    </div>
+                    <p className="line-clamp-2 text-xs font-medium text-gray-500 leading-normal">
+                      {ep.overview || "No description available for this episode."}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
         )}
 
         {/* Cast */}
         {cast.length > 0 && (
-          <section className="bg-white border-b px-4 py-4">
-            <h2 className="mb-3 font-bold">Cast</h2>
-            <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-1">
+          <section className="bg-white border-b px-6 py-10">
+            <h2 className="mb-8 text-xl font-black italic tracking-tighter uppercase">Cast</h2>
+            <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-2">
               {cast.map((c) => (
-                <div key={c.id} className="flex w-16 shrink-0 flex-col items-center text-center">
-                  <div className="h-16 w-16 overflow-hidden rounded-full bg-gray-100 ring-2 ring-gray-200">
+                <div
+                  key={c.id}
+                  className="flex w-20 shrink-0 flex-col items-center text-center group"
+                >
+                  <div className="h-20 w-20 overflow-hidden rounded-full bg-gray-100 ring-2 ring-gray-100 ring-offset-2 transition-all group-hover:ring-primary shadow-sm">
                     {c.profile_path ? (
                       <img
                         src={img(c.profile_path, "w185")}
@@ -382,12 +369,12 @@ function TitlePage() {
                         loading="lazy"
                       />
                     ) : (
-                      <div className="grid h-full w-full place-items-center text-sm font-bold text-gray-400">
+                      <div className="grid h-full w-full place-items-center text-lg font-black text-gray-300">
                         {c.name?.[0]}
                       </div>
                     )}
                   </div>
-                  <div className="mt-1 line-clamp-2 text-[10px] font-semibold text-gray-800">
+                  <div className="mt-3 line-clamp-2 text-[10px] font-black uppercase tracking-tight text-gray-900 leading-tight">
                     {c.name}
                   </div>
                 </div>
@@ -398,10 +385,12 @@ function TitlePage() {
 
         {/* Recommendations */}
         {recs.length > 0 && (
-          <section className="bg-white px-4 py-4">
-            <h2 className="mb-3 font-bold">You May Also Like</h2>
-            <div className="grid grid-cols-3 gap-3">
-              {recs.slice(0, 9).map((t) => (
+          <section className="bg-white px-6 py-10">
+            <h2 className="mb-8 text-xl font-black italic tracking-tighter uppercase">
+              You May Also Like
+            </h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {recs.slice(0, 6).map((t) => (
                 <PosterCard key={t.id} t={t} />
               ))}
             </div>

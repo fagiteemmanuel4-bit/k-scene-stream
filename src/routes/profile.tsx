@@ -6,14 +6,15 @@ import {
   Bookmark,
   Clock,
   Download,
-  Globe,
-  Wifi,
   LogIn,
   Trash2,
   Play,
   Star,
   Flame,
-  Trophy,
+  ChevronRight,
+  ShieldCheck,
+  Globe,
+  Wifi,
   Zap,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -22,9 +23,10 @@ import { useWatchlist } from "@/lib/watchlist";
 import { useWatchHistory, useDownloads, useSettings } from "@/lib/userdata";
 import { getStreakData } from "@/components/StreakOverlay";
 import { img } from "@/lib/tmdb";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 
 export const Route = createFileRoute("/profile")({
-  head: () => ({ meta: [{ title: "Profile — K·Scene" }] }),
+  head: () => ({ meta: [{ title: "My K·Scene Profile" }] }),
   component: ProfilePage,
 });
 
@@ -42,7 +44,8 @@ const COUNTRIES = [
   "Brazil",
   "Japan",
   "Philippines",
-];
+].map((c) => ({ value: c, label: c }));
+
 const QUALITIES = [
   { value: "auto", label: "Auto (Recommended)" },
   { value: "360p", label: "360p — Data Saver" },
@@ -50,267 +53,178 @@ const QUALITIES = [
   { value: "1080p", label: "1080p — Full HD" },
 ];
 
-type Tab = "watchlist" | "history" | "downloads" | "settings";
+type Tab = "library" | "history" | "settings";
 
 function ProfilePage() {
   const { user, signOut } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [authTab, setAuthTab] = useState<"login" | "signup">("login");
-  const [activeTab, setActiveTab] = useState<Tab>("watchlist");
+  const [activeTab, setActiveTab] = useState<Tab>("library");
   const { list: watchlist } = useWatchlist();
   const { list: history, clearHistory } = useWatchHistory();
-  const { list: downloads, removeDownload } = useDownloads();
+  const { list: downloads } = useDownloads();
   const { settings, update } = useSettings();
   const streak = getStreakData();
 
   if (!user) {
     return (
-      <div className="flex min-h-[80vh] flex-col items-center justify-center bg-white px-6 text-center">
+      <div className="flex min-h-[90vh] flex-col items-center justify-center bg-white px-8 text-center">
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} defaultTab={authTab} />}
-        <div className="text-6xl mb-2">🎬</div>
-        <h2 className="mt-2 text-2xl font-black text-gray-900">Your K·Scene</h2>
-        <p className="mt-2 text-sm text-gray-500 max-w-xs">
-          Sign in to save your watchlist, track episodes, manage downloads and set preferences.
+        <div className="relative mb-8">
+          <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-4xl animate-pulse">
+            🎬
+          </div>
+          <div className="absolute -bottom-2 -right-2 h-10 w-10 rounded-full bg-white shadow-xl flex items-center justify-center text-xl">
+            ✨
+          </div>
+        </div>
+        <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">
+          JOIN THE SCENE
+        </h2>
+        <p className="mt-3 text-sm font-medium text-gray-500 max-w-xs leading-relaxed">
+          Sign in to unlock your personal K-Drama library, track progress, and manage downloads.
         </p>
-        <div className="mt-8 flex gap-3">
+        <div className="mt-10 flex w-full max-w-xs flex-col gap-4">
           <button
             onClick={() => {
               setAuthTab("login");
               setShowAuth(true);
             }}
-            className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-bold text-white shadow-lift"
+            className="w-full rounded-full bg-primary py-4 text-sm font-black uppercase tracking-widest text-white shadow-[0_12px_24px_-6px_rgba(232,80,58,0.4)] transition hover:brightness-110 active:scale-95"
           >
-            <LogIn className="h-4 w-4" /> Log In
+            Sign In
           </button>
           <button
             onClick={() => {
               setAuthTab("signup");
               setShowAuth(true);
             }}
-            className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700"
+            className="w-full rounded-full border border-gray-100 bg-gray-50 py-4 text-sm font-bold text-gray-600 transition hover:bg-gray-100"
           >
-            Sign Up
+            Create Account
           </button>
         </div>
       </div>
     );
   }
 
-  const displayName = user.displayName || user.email?.split("@")[0] || "K·Scene Fan";
-  const initials = displayName
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  const displayName = user.displayName || user.email?.split("@")[0] || "Fan";
   const streakCount = streak?.count || 0;
 
-  const TABS: { key: Tab; label: string; icon: typeof Settings; count?: number }[] = [
-    {
-      key: "watchlist",
-      label: "Watchlist",
-      icon: Bookmark as typeof Settings,
-      count: watchlist.length,
-    },
-    { key: "history", label: "Recent", icon: Clock as typeof Settings, count: history.length },
-    {
-      key: "downloads",
-      label: "Downloads",
-      icon: Download as typeof Settings,
-      count: downloads.length,
-    },
-    { key: "settings", label: "Settings", icon: Settings },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50 pb-6">
-      {/* Header */}
-      <div className="bg-white px-4 pt-10 pb-5 shadow-sm">
-        <div className="mx-auto max-w-xl">
-          <div className="flex items-center gap-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary to-orange-400 text-xl font-black text-white shadow-lift">
-              {initials}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-lg font-black text-gray-900">{displayName}</h1>
-              <p className="truncate text-xs text-gray-500">{user.email}</p>
-              <p className="mt-0.5 text-xs text-gray-400">{settings.country}</p>
+    <div className="min-h-screen bg-gray-50/30 pb-28">
+      {/* Premium Header */}
+      <div className="bg-white px-6 pt-16 pb-12 rounded-b-[48px] shadow-sm ring-1 ring-gray-100">
+        <div className="mx-auto max-w-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-5">
+              <div className="relative">
+                <div className="h-20 w-20 shrink-0 overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-orange-400 p-0.5 shadow-xl">
+                  <div className="h-full w-full rounded-[22px] bg-white flex items-center justify-center text-2xl font-black text-primary">
+                    {displayName[0].toUpperCase()}
+                  </div>
+                </div>
+                <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-green-500 ring-4 ring-white" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="truncate text-2xl font-black italic tracking-tighter text-gray-900">
+                    {displayName.toUpperCase()}
+                  </h1>
+                  <ShieldCheck className="h-5 w-5 text-blue-500 fill-current" />
+                </div>
+                <p className="truncate text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                  {user.email}
+                </p>
+              </div>
             </div>
             <button
               onClick={signOut}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-500 hover:text-red-500 transition"
+              className="rounded-full bg-gray-50 p-3 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Streak card */}
+          {/* New Streak Card */}
           {streakCount > 0 && (
-            <div className="mt-4 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-primary to-orange-400 p-4 text-white">
-              <div className="flex items-center gap-1.5">
-                <Flame className="h-6 w-6 fill-white" />
-                <span className="text-3xl font-black">{streakCount}</span>
+            <div className="mt-8 relative overflow-hidden rounded-3xl bg-gray-900 p-6 text-white shadow-2xl">
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-white/10 flex items-center justify-center ring-1 ring-white/20">
+                    <Flame className="h-7 w-7 text-primary fill-current" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black italic">{streakCount} DAYS</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                      Current Streak
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-black uppercase tracking-widest text-primary">
+                    Elite Fan
+                  </p>
+                  <div className="mt-1 flex gap-0.5">
+                    <Star className="h-3 w-3 fill-primary text-primary" />
+                    <Star className="h-3 w-3 fill-primary text-primary" />
+                    <Star className="h-3 w-3 fill-primary text-primary" />
+                  </div>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-bold">Day Streak</p>
-                <p className="text-xs opacity-80">
-                  {streakCount >= 30
-                    ? "Legendary 🏆"
-                    : streakCount >= 14
-                      ? "Dedicated fan 🔥"
-                      : streakCount >= 7
-                        ? "K-drama addict 💜"
-                        : "Keep it going!"}
-                </p>
-              </div>
-              <div className="text-right">
-                <Trophy className="h-8 w-8 opacity-30" />
-              </div>
+              <div className="absolute -right-8 -bottom-8 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
             </div>
           )}
 
-          {/* Stats row */}
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            {[
-              { label: "Watchlist", value: watchlist.length, icon: Bookmark },
-              { label: "Watched", value: history.length, icon: Clock },
-              { label: "Downloads", value: downloads.length, icon: Download },
-            ].map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-2xl border border-gray-100 bg-white p-3 text-center shadow-sm"
-              >
-                <p className="text-2xl font-black text-primary">{stat.value}</p>
-                <p className="text-[11px] text-gray-500">{stat.label}</p>
-              </div>
-            ))}
+          <div className="mt-8 grid grid-cols-3 gap-4">
+            <StatCard label="Watchlist" value={watchlist.length} icon={Bookmark} />
+            <StatCard label="History" value={history.length} icon={Clock} />
+            <StatCard label="Offline" value={downloads.length} icon={Download} />
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="sticky top-0 z-10 bg-white border-b shadow-sm">
-        <div className="mx-auto flex max-w-xl gap-0 px-2 py-1">
-          {TABS.map((t) => (
+      {/* Modern Tabs */}
+      <div className="mx-auto max-w-2xl px-6 mt-10">
+        <div className="flex gap-2 rounded-2xl bg-gray-100 p-1.5">
+          {["library", "history", "settings"].map((tab) => (
             <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key)}
-              className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl py-2 text-[10px] font-bold transition ${
-                activeTab === t.key
-                  ? "bg-primary/10 text-primary"
-                  : "text-gray-400 hover:text-gray-700"
+              key={tab}
+              onClick={() => setActiveTab(tab as Tab)}
+              className={`flex-1 rounded-xl py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeTab === tab
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-400 hover:text-gray-600"
               }`}
             >
-              <t.icon className="h-4 w-4" />
-              {t.label}
-              {t.count !== undefined && t.count > 0 && (
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${activeTab === t.key ? "bg-primary text-white" : "bg-gray-100 text-gray-500"}`}
-                >
-                  {t.count}
-                </span>
-              )}
+              {tab}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="mx-auto max-w-xl px-4 pt-5">
-        {/* Watchlist */}
-        {activeTab === "watchlist" &&
-          (watchlist.length === 0 ? (
-            <EmptyState
-              emoji="🔖"
-              title="Nothing saved yet"
-              sub="Tap + on any drama to save it here."
-            />
-          ) : (
-            <div className="grid grid-cols-3 gap-3">
-              {watchlist.map((item) => (
-                <Link
-                  key={item.id}
-                  to="/title/$id"
-                  params={{ id: String(item.id) }}
-                  className="group relative overflow-hidden rounded-xl bg-gray-100"
-                >
-                  <div style={{ aspectRatio: "2/3" }}>
-                    {item.poster_path ? (
-                      <img
-                        src={img(item.poster_path, "w300")}
-                        alt={item.name}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-2xl bg-gray-200">
-                        🎬
-                      </div>
-                    )}
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                    <p className="line-clamp-2 text-[10px] font-bold text-white leading-tight">
-                      {item.name}
-                    </p>
-                    <div className="flex items-center gap-0.5 mt-0.5">
-                      <Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-[9px] text-white/80">
-                        {item.vote_average.toFixed(1)}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ))}
-
-        {/* History */}
-        {activeTab === "history" && (
-          <div>
-            {history.length > 0 && (
-              <div className="mb-4 flex justify-end">
-                <button
-                  onClick={clearHistory}
-                  className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Clear history
-                </button>
-              </div>
-            )}
-            {history.length === 0 ? (
-              <EmptyState
-                emoji="⏱️"
-                title="No watch history"
-                sub="Episodes you play will appear here."
-              />
+      <div className="mx-auto max-w-2xl px-6 pt-8">
+        {activeTab === "library" && (
+          <div className="space-y-6">
+            <SectionHeader title="Your Watchlist" count={watchlist.length} />
+            {watchlist.length === 0 ? (
+              <EmptyState emoji="🔖" message="No dramas saved." />
             ) : (
-              <div className="space-y-3">
-                {history.map((item, i) => (
+              <div className="grid grid-cols-3 gap-3">
+                {watchlist.map((item) => (
                   <Link
-                    key={i}
+                    key={item.id}
                     to="/title/$id"
                     params={{ id: String(item.id) }}
-                    className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm transition hover:border-primary"
+                    className="group"
                   >
-                    <div className="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-200">
-                      {item.poster_path && (
-                        <img
-                          src={img(item.poster_path, "w200")}
-                          alt={item.name}
-                          className="h-full w-full object-cover"
-                        />
-                      )}
+                    <div className="aspect-[2/3] overflow-hidden rounded-2xl bg-gray-200 shadow-sm ring-1 ring-gray-100 transition-transform group-hover:scale-105">
+                      <img
+                        src={img(item.poster_path, "w300")}
+                        className="h-full w-full object-cover"
+                        alt=""
+                      />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-gray-900">{item.name}</p>
-                      {item.season && item.episode && (
-                        <p className="text-xs text-gray-500">
-                          S{item.season} · E{item.episode}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-gray-400">
-                        {new Date(item.watchedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Play className="h-4 w-4 shrink-0 text-primary" />
                   </Link>
                 ))}
               </div>
@@ -318,130 +232,115 @@ function ProfilePage() {
           </div>
         )}
 
-        {/* Downloads */}
-        {activeTab === "downloads" &&
-          (downloads.length === 0 ? (
-            <EmptyState
-              emoji="⬇️"
-              title="No downloads"
-              sub="Use the Download button inside the player."
-            />
-          ) : (
-            <div className="space-y-3">
-              {downloads.map((item, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3 shadow-sm"
+        {activeTab === "history" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <SectionHeader title="Recently Watched" count={history.length} />
+              {history.length > 0 && (
+                <button
+                  onClick={clearHistory}
+                  className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-full transition-colors"
                 >
-                  <div className="h-14 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-200">
-                    {item.poster_path && (
+                  Clear
+                </button>
+              )}
+            </div>
+            {history.length === 0 ? (
+              <EmptyState emoji="⏱️" message="Nothing watched yet." />
+            ) : (
+              <div className="space-y-4">
+                {history.map((item, i) => (
+                  <Link
+                    key={i}
+                    to="/title/$id"
+                    params={{ id: String(item.id) }}
+                    className="flex items-center gap-4 rounded-3xl bg-white p-3 shadow-sm ring-1 ring-gray-100 hover:ring-primary/30 transition-all group"
+                  >
+                    <div className="h-16 w-12 shrink-0 overflow-hidden rounded-xl bg-gray-100">
                       <img
                         src={img(item.poster_path, "w200")}
-                        alt={item.name}
                         className="h-full w-full object-cover"
+                        alt=""
                       />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-gray-900">{item.name}</p>
-                    {item.season && item.episode && (
-                      <p className="text-xs text-gray-500">
-                        S{item.season} · E{item.episode} · {item.quality}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-black text-gray-900 group-hover:text-primary transition-colors">
+                        {item.name}
                       </p>
-                    )}
-                    <p className="text-[10px] text-gray-400">
-                      {new Date(item.downloadedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={item.url}
-                      download
-                      target="_blank"
-                      rel="noreferrer"
-                      className="grid h-8 w-8 place-items-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition"
-                    >
-                      <Download className="h-4 w-4" />
-                    </a>
-                    <button
-                      onClick={() => removeDownload(item.url)}
-                      className="grid h-8 w-8 place-items-center rounded-full text-gray-300 hover:text-red-500 transition"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
-
-        {/* Settings */}
-        {activeTab === "settings" && (
-          <div className="space-y-4">
-            <SettingsCard
-              title="Country / Region"
-              icon={<Globe className="h-4 w-4 text-primary" />}
-            >
-              <select
-                value={settings.country}
-                onChange={(e) => update({ country: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-primary"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c}>{c}</option>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                        {item.season ? `S${item.season} · E${item.episode}` : "Movie"}
+                      </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </Link>
                 ))}
-              </select>
-            </SettingsCard>
-
-            <SettingsCard
-              title="Streaming Quality"
-              icon={<Wifi className="h-4 w-4 text-primary" />}
-            >
-              {QUALITIES.map((q) => (
-                <label key={q.value} className="flex cursor-pointer items-center gap-3 py-1">
-                  <div
-                    className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${settings.streamingQuality === q.value ? "border-primary" : "border-gray-300"}`}
-                  >
-                    {settings.streamingQuality === q.value && (
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                    )}
-                  </div>
-                  <input
-                    type="radio"
-                    className="sr-only"
-                    checked={settings.streamingQuality === q.value}
-                    onChange={() =>
-                      update({ streamingQuality: q.value as "auto" | "360p" | "720p" | "1080p" })
-                    }
-                  />
-                  <span className="text-sm text-gray-700">{q.label}</span>
-                </label>
-              ))}
-            </SettingsCard>
-
-            <SettingsCard title="Data Saver" icon={<Zap className="h-4 w-4 text-primary" />}>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">Force 360p · reduce image quality</p>
-                <button
-                  onClick={() => update({ dataSaver: !settings.dataSaver })}
-                  className={`relative h-6 w-11 rounded-full transition-colors ${settings.dataSaver ? "bg-primary" : "bg-gray-200"}`}
-                >
-                  <div
-                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${settings.dataSaver ? "translate-x-5" : "translate-x-0.5"}`}
-                  />
-                </button>
               </div>
-            </SettingsCard>
+            )}
+          </div>
+        )}
 
-            <SettingsCard title="Account" icon={<LogOut className="h-4 w-4 text-primary" />}>
-              <p className="text-sm text-gray-500 mb-3">{user.email}</p>
+        {activeTab === "settings" && (
+          <div className="space-y-6">
+            <SectionHeader title="App Settings" />
+            <div className="space-y-6">
+              <div className="rounded-[40px] bg-white p-8 shadow-sm ring-1 ring-gray-100">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="rounded-2xl bg-blue-50 p-2">
+                    <Globe className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <h3 className="font-black italic text-gray-900 tracking-tight">REGION</h3>
+                </div>
+                <CustomSelect<string>
+                  options={COUNTRIES}
+                  value={settings.country}
+                  onChange={(val) => update({ country: val })}
+                />
+              </div>
+
+              <div className="rounded-[40px] bg-white p-8 shadow-sm ring-1 ring-gray-100">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="rounded-2xl bg-primary/10 p-2">
+                    <Wifi className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-black italic text-gray-900 tracking-tight">STREAMING</h3>
+                </div>
+                <CustomSelect<string>
+                  label="Default Quality"
+                  options={QUALITIES}
+                  value={settings.streamingQuality}
+                  onChange={(val) => update({ streamingQuality: val })}
+                />
+
+                <div className="mt-8 flex items-center justify-between rounded-[32px] bg-gray-50 p-6">
+                  <div className="flex items-center gap-3">
+                    <Zap
+                      className={`h-5 w-5 ${settings.dataSaver ? "text-yellow-500 fill-current" : "text-gray-300"}`}
+                    />
+                    <div>
+                      <p className="text-xs font-black text-gray-900 uppercase">Data Saver</p>
+                      <p className="text-[10px] font-bold text-gray-400">
+                        Force 360p & reduce data usage
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => update({ dataSaver: !settings.dataSaver })}
+                    className={`relative h-7 w-12 rounded-full transition-colors ${settings.dataSaver ? "bg-primary" : "bg-gray-300"}`}
+                  >
+                    <div
+                      className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${settings.dataSaver ? "translate-x-6" : "translate-x-1"}`}
+                    />
+                  </button>
+                </div>
+              </div>
+
               <button
                 onClick={signOut}
-                className="w-full rounded-xl bg-red-50 py-3 text-sm font-bold text-red-500 transition hover:bg-red-100"
+                className="w-full rounded-[32px] bg-red-50 py-5 text-sm font-black uppercase tracking-[0.2em] text-red-500 transition-colors hover:bg-red-100"
               >
-                Sign Out
+                Sign Out Account
               </button>
-            </SettingsCard>
+            </div>
           </div>
         )}
       </div>
@@ -449,32 +348,44 @@ function ProfilePage() {
   );
 }
 
-function EmptyState({ emoji, title, sub }: { emoji: string; title: string; sub: string }) {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+}) {
   return (
-    <div className="mt-16 text-center">
-      <p className="text-5xl">{emoji}</p>
-      <p className="mt-4 font-bold text-gray-800">{title}</p>
-      <p className="mt-1 text-sm text-gray-400">{sub}</p>
+    <div className="flex flex-col items-center justify-center rounded-3xl bg-gray-50/50 py-4 ring-1 ring-gray-100">
+      <Icon className="h-4 w-4 text-gray-400 mb-1" />
+      <span className="text-xl font-black italic text-gray-900">{value}</span>
+      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{label}</span>
     </div>
   );
 }
 
-function SettingsCard({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-2 mb-4">
-        {icon}
-        <h3 className="font-bold text-gray-900">{title}</h3>
-      </div>
-      {children}
+    <div className="flex items-center gap-3">
+      <h2 className="text-lg font-black italic tracking-tighter text-gray-900 uppercase">
+        {title}
+      </h2>
+      {count !== undefined && (
+        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-black text-primary">
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ emoji, message }: { emoji: string; message: string }) {
+  return (
+    <div className="py-12 text-center rounded-3xl bg-gray-50/30 ring-1 ring-inset ring-gray-100">
+      <span className="text-3xl">{emoji}</span>
+      <p className="mt-2 text-sm font-bold text-gray-400 uppercase tracking-widest">{message}</p>
     </div>
   );
 }
