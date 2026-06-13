@@ -18,6 +18,7 @@ export type Title = {
   release_date?: string;
   media_type?: "tv" | "movie";
   genre_ids?: number[];
+  original_language?: string;
 };
 
 async function tmdb<T>(path: string, params: Record<string, string | number> = {}): Promise<T> {
@@ -42,52 +43,30 @@ export const getTrendingKDrama = () =>
     ...KDRAMA_DISCOVER,
     sort_by: "popularity.desc",
     page: 1,
-  }).then((d) => d.results);
+  }).then((d) => d.results.filter((t) => t.original_language === "ko" || !t.original_language));
 
 export const getPopularKDrama = (page = 2) =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) => d.results);
+  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) =>
+    d.results.filter((t) => t.original_language === "ko"),
+  );
 
 export const getTopRatedKDrama = () =>
   tmdb<{ results: Title[] }>("/discover/tv", {
     ...KDRAMA_DISCOVER,
     sort_by: "vote_average.desc",
     "vote_count.gte": 200,
-  }).then((d) => d.results);
+  }).then((d) => d.results.filter((t) => t.original_language === "ko"));
 
 export const getRecentKDrama = () =>
   tmdb<{ results: Title[] }>("/discover/tv", {
     ...KDRAMA_DISCOVER,
     sort_by: "first_air_date.desc",
     "first_air_date.lte": new Date().toISOString().slice(0, 10),
-  }).then((d) => d.results);
-
-export const getByGenre = (genreId: number, page = 1) =>
-  tmdb<{ results: Title[] }>("/discover/tv", {
-    ...KDRAMA_DISCOVER,
-    with_genres: genreId,
-    page,
-  }).then((d) => d.results);
-
-export const getByPage = (page: number) =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) => d.results);
-
-export const GENRES = {
-  romance: 10749,
-  action: 10759,
-  comedy: 35,
-  drama: 18,
-  mystery: 9648,
-  // historical via keyword (kdrama "historical" ≈ 10768 War & Politics not ideal). Using drama+keyword 6075 (period)
-};
-
-export const getHistoricalKDrama = () =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, with_keywords: "6075" }).then(
-    (d) => d.results,
-  );
+  }).then((d) => d.results.filter((t) => t.original_language === "ko"));
 
 export const searchMulti = (q: string) =>
-  tmdb<{ results: Title[] }>("/search/tv", { query: q, with_original_language: "ko" }).then(
-    (d) => d.results,
+  tmdb<{ results: Title[] }>("/search/tv", { query: q }).then((d) =>
+    d.results.filter((t) => t.original_language === "ko"),
   );
 
 export type TitleDetail = Title & {
@@ -104,6 +83,7 @@ export type TitleDetail = Title & {
     episode_count: number;
     poster_path: string | null;
   }[];
+  videos?: { results: { key: string; site: string; type: string }[] };
 };
 
 export const getDetail = (id: number) =>
@@ -122,3 +102,30 @@ export const getSeason = (id: number, season: number) =>
       air_date: string;
     }[];
   }>(`/tv/${id}/season/${season}`);
+
+export const GENRES = {
+  romance: 10749,
+  action: 10759,
+  comedy: 35,
+  mystery: 9648,
+  drama: 18,
+};
+
+export const getByGenre = (genreId: number, page = 1) =>
+  tmdb<{ results: Title[] }>("/discover/tv", {
+    ...KDRAMA_DISCOVER,
+    with_genres: genreId,
+    page,
+  }).then((d) => d.results.filter((t) => t.original_language === "ko"));
+
+export const getByPage = (page: number) =>
+  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) =>
+    d.results.filter((t) => t.original_language === "ko"),
+  );
+
+export const getHistoricalKDrama = () =>
+  tmdb<{ results: Title[] }>("/discover/tv", {
+    ...KDRAMA_DISCOVER,
+    with_genres: "36,10759", // History or Action/Adventure usually covers sageuks
+    page: 1,
+  }).then((d) => d.results.filter((t) => t.original_language === "ko"));

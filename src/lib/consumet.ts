@@ -22,24 +22,30 @@ const BASE_URL = "https://xyra.stream";
 const API_KEY = "freekey";
 
 async function fetchStream(episodeId: string | number): Promise<StreamResult> {
-  console.log(`[Streaming] Fetching data for episode_id: ${episodeId}`);
+  console.log(`[Streaming] Attempting to fetch data for episode_id: ${episodeId}`);
   try {
     const response = await fetch(`${BASE_URL}/stream?api_key=${API_KEY}&episode_id=${episodeId}`);
     if (!response.ok) {
-      throw new Error(`Xyra API error: ${response.status} ${response.statusText}`);
+      console.warn(`[Streaming] Xyra API error for ${episodeId}: ${response.status}`);
+      return { sources: [], subtitles: [] };
     }
     const data = await response.json();
 
-    // Parse the dynamic JSON payload structure
-    // Expected structure: { sources: [{ url, quality }], subtitles: [{ url, lang }] }
+    const sources = (data.sources || []).map((s: { url: string; quality?: string }) => ({
+      url: s.url,
+      quality: s.quality || "HD",
+      isM3U8: s.url.includes(".m3u8"),
+      label: s.quality || "Default",
+    }));
+
+    if (sources.length === 0) {
+      console.log(`[Streaming] No sources found for episode_id: ${episodeId}`);
+    } else {
+      console.log(`[Streaming] Successfully found ${sources.length} sources for ${episodeId}`);
+    }
 
     return {
-      sources: (data.sources || []).map((s: { url: string; quality?: string }) => ({
-        url: s.url,
-        quality: s.quality || "HD",
-        isM3U8: s.url.includes(".m3u8"),
-        label: s.quality || "Default",
-      })),
+      sources,
       subtitles: (data.subtitles || []).map(
         (sub: { url: string; lang?: string; language?: string }) => ({
           url: sub.url,
@@ -49,14 +55,19 @@ async function fetchStream(episodeId: string | number): Promise<StreamResult> {
       headers: data.headers,
     };
   } catch (error) {
-    console.error("[Streaming] Error fetching stream data:", error);
+    console.error(`[Streaming] Critical error for ${episodeId}:`, error);
     return { sources: [], subtitles: [] };
   }
 }
 
 export async function getMovieStream(tmdbId: number): Promise<StreamResult> {
-  // For movies, we use the TMDB ID as the episode_id
-  return fetchStream(tmdbId);
+  // Primary attempt
+  const res = await fetchStream(tmdbId);
+  if (res.sources.length > 0) return res;
+
+  // Fallback variations if needed
+  console.log(`[Streaming] Trying movie fallback for TMDB ${tmdbId}`);
+  return fetchStream(`movie-${tmdbId}`);
 }
 
 export async function getEpisodeStream(
@@ -65,7 +76,17 @@ export async function getEpisodeStream(
   episode: number,
   _title: string,
 ): Promise<StreamResult> {
-  // For TV episodes, we use the format tmdbId-season-episode
-  const episodeId = `${tmdbId}-${season}-${episode}`;
-  return fetchStream(episodeId);
+  // Primary: tmdbId-season-episode
+  const primaryId = `${tmdbId}-${season}-${episode}`;
+  let res = await fetchStream(primaryId);
+  if (res.sources.length > 0) return res;
+
+  // Fallback 1: tv-tmdbId-season-episode
+  console.log(`[Streaming] Trying TV fallback 1 for ${primaryId}`);
+  res = await fetchStream(`tv-${tmdbId}-${season}-${episode}`);
+  if (res.sources.length > 0) return res;
+
+  // Fallback 2: tmdbId
+  console.log(`[Streaming] Trying TV fallback 2 (ID only) for ${tmdbId}`);
+  return fetchStream(tmdbId);
 }
