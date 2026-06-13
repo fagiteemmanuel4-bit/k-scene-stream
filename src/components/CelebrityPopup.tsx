@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { X, Flame, ArrowRight, Zap, Star } from "lucide-react";
 
+const MOVIEBOX_API = import.meta.env.VITE_MOVIEBOX_API_URL || "";
+
 export function CelebrityPopup() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -8,7 +10,7 @@ export function CelebrityPopup() {
   useEffect(() => {
     const hasSeen = sessionStorage.getItem("celeb-popup-seen");
     if (!hasSeen) {
-      fetch("http://localhost:8000/artists")
+      fetch(`${MOVIEBOX_API}/artists`)
         .then(res => res.json())
         .then(res => {
           if (res && res.length > 0) {

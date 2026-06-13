@@ -1,5 +1,5 @@
 // Bridge to the Python Moviebox Server
-const MOVIEBOX_API = import.meta.env.VITE_MOVIEBOX_API_URL || "http://localhost:8000";
+const MOVIEBOX_API = import.meta.env.VITE_MOVIEBOX_API_URL || "";
 
 export type StreamSource = {
   url: string;
@@ -82,6 +82,25 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 10000)
   }
 }
 
+export async function getVidSrcStream(tmdbId: number, isTv: boolean = false, s: number = 1, e: number = 1): Promise<StreamResult> {
+  try {
+    const res = await fetch(`${MOVIEBOX_API}/vidsrc?tmdb_id=${tmdbId}&is_tv=${isTv}&s=${s}&e=${e}`);
+    if (res.ok) {
+        const data = await res.json();
+        return {
+            sources: [{
+                url: data.url,
+                quality: data.quality || "HD",
+                isM3U8: data.url.includes(".m3u8"),
+                label: data.provider || "VidSrc"
+            }],
+            subtitles: []
+        };
+    }
+  } catch(e) {}
+  return { sources: [], subtitles: [] };
+}
+
 export async function getEpisodeStream(
   tmdbId: number,
   season: number,
@@ -102,6 +121,12 @@ export async function getEpisodeStream(
   } catch (e) {
     console.warn("[Stream] Moviebox fetch failed, falling back to Xyra", e);
   }
+
+  // Try VidSrc Extraction first for high quality ad-free stream
+  try {
+      const vidsrc = await getVidSrcStream(tmdbId, true, season, episode);
+      if (vidsrc.sources.length > 0) return vidsrc;
+  } catch(e) {}
 
   // Fallback to Xyra if Moviebox fails
   const XYRA_URL = "https://xyra.stream";

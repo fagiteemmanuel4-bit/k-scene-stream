@@ -36,6 +36,7 @@ function ProfilePage() {
   const [showCustomizer, setShowCustomizer] = useState(false);
 
   const emojis = ["🔥", "👑", "🎬", "🍜", "💖", "🌸", "⭐", "🦄", "🌈", "🥋"];
+  const characters = ["Hedgehog", "Rabbit", "Cat", "Fox", "Panda"];
 
   const handleFeatureSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +128,22 @@ function ProfilePage() {
                       </div>
 
                       <div className="space-y-3">
-                          <label className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">Avatar Seed</label>
+                          <label className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">Select Character</label>
+                          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                              {characters.map(c => (
+                                  <button
+                                    key={c}
+                                    onClick={() => updateProfile({ avatarSeed: c.toLowerCase() })}
+                                    className={`shrink-0 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${profile.avatarSeed === c.toLowerCase() ? "bg-primary text-white" : "bg-gray-50 text-gray-400"}`}
+                                  >
+                                      {c}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+
+                      <div className="space-y-3">
+                          <label className="text-[10px] font-black uppercase text-gray-400 px-2 tracking-widest">Custom Avatar Seed</label>
                           <input
                             type="text"
                             value={profile.avatarSeed}
@@ -241,9 +257,49 @@ function ProfilePage() {
             </div>
         </div>
 
+        {/* App Preferences */}
+        <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 px-4">App Preferences</p>
+            <div className="bg-white rounded-[40px] border border-gray-50 shadow-sm divide-y divide-gray-50 overflow-hidden">
+                <button
+                    onClick={() => setShowCustomizer(true)}
+                    className="flex w-full items-center justify-between px-8 py-6 hover:bg-gray-50 transition-colors"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                            <UserCircle className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <span className="block text-sm font-black uppercase tracking-tight text-gray-900">Custom Profile</span>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase">Avatar & Emoji</span>
+                        </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-gray-300" />
+                </button>
+                <div className="px-8 py-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                <Settings className="h-5 w-5" />
+                            </div>
+                            <span className="text-sm font-black uppercase tracking-tight text-gray-900">Playback Settings</span>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button className="bg-gray-50 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:bg-primary/5 hover:text-primary transition-all">
+                            4K Ultra
+                        </button>
+                        <button className="bg-primary/10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-primary border border-primary/20">
+                            Auto Optimize
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {/* Account Options */}
         <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 px-4">Account Settings</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 px-4">Feedback & Support</p>
             <div className="bg-white rounded-[40px] border border-gray-50 shadow-sm divide-y divide-gray-50">
                 <button
                     onClick={() => setShowFeatureModal(true)}
