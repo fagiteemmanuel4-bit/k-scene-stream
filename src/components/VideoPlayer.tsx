@@ -1,247 +1,331 @@
-import { useEffect, useRef, useState } from "react";
-import type { StreamResult, StreamSource } from "@/lib/consumet";
-import { Download, AlertCircle, Shield, Zap, Settings, Info, CheckCircle2 } from "lucide-react";
-import Plyr from "plyr";
-import "plyr/dist/plyr.css";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { toast } from "sonner";
+import type { StreamResult, StreamSource } from "@/lib/consumet";
+import {
+  Play, Pause, Volume2, VolumeX, Maximize, Minimize,
+  Download, SkipForward, SkipBack, Settings, Loader2,
+  AlertCircle, RefreshCw, Subtitles,
+} from "lucide-react";
 
 type Props = {
   streamResult: StreamResult;
   title: string;
   poster?: string;
   onDownload?: (url: string, quality: string) => void;
-  onSmartDownload?: () => void;
 };
 
-export function VideoPlayer({ streamResult, title, poster, onDownload, onSmartDownload }: Props) {
-  const [activeSource, setActiveSource] = useState<StreamSource | null>(
-    streamResult.sources.length > 0 ? streamResult.sources[0] : null,
-  );
-  const [dataSaver, setDataSaver] = useState(false);
+function fmtTime(s: number) {
+  if (!isFinite(s) || s < 0) return "0:00";
+  const m = Math.floor(s / 60);
+  return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+}
+
+export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const plyrRef = useRef<Plyr | null>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const currentTimeRef = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>();
 
+  const [activeSrc, setActiveSrc] = useState<StreamSource | null>(streamResult.sources[0] ?? null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [buffering, setBuffering] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showSubs, setShowSubs] = useState(false);
+  const [activeSub, setActiveSub] = useState<string | null>(null);
+  const [hlsLevels, setHlsLevels] = useState<{ height: number; index: number }[]>([]);
+  const [activeLevel, setActiveLevel] = useState(-1);
+
+  // Load source
   useEffect(() => {
-    if (streamResult.sources.length > 0) {
-      let source = streamResult.sources[0];
-      if (dataSaver) {
-        source = [...streamResult.sources].sort((a, b) => {
-          const qA = parseInt(a.quality) || 0;
-          const qB = parseInt(b.quality) || 0;
-          return qA - qB;
-        })[0];
-      }
-
-      if (activeSource?.url !== source.url) {
-        if (videoRef.current) {
-          currentTimeRef.current = videoRef.current.currentTime;
-        }
-        setActiveSource(source);
-      }
-    }
-  }, [streamResult, dataSaver, activeSource?.url]);
-
-  useEffect(() => {
-    if (!videoRef.current || !activeSource) return;
-
     const video = videoRef.current;
-    if (plyrRef.current) plyrRef.current.destroy();
-    if (hlsRef.current) hlsRef.current.destroy();
+    if (!video || !activeSrc) return;
+    setError(null);
+    setBuffering(true);
+    setPlaying(false);
+    setHlsLevels([]);
+    if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
-    const options: Plyr.Options = {
-      controls: [
-        "play-large",
-        "play",
-        "progress",
-        "current-time",
-        "mute",
-        "volume",
-        "captions",
-        "settings",
-        "pip",
-        "airplay",
-        "fullscreen",
-      ],
-      settings: ["quality", "speed", "loop"],
-      quality: {
-        default: parseInt(activeSource.quality) || 720,
-        options: streamResult.sources.map((s) => parseInt(s.quality) || 0).filter((q) => q > 0),
-        onChange: (newQuality: number) => {
-          const source = streamResult.sources.find(
-            (s) => (parseInt(s.quality) || 0) === newQuality,
-          );
-          if (source && source.url !== activeSource.url) {
-            currentTimeRef.current = video.currentTime;
-            setActiveSource(source);
-          }
-        },
-      },
-      title: title,
-    };
-
-    const initPlyr = () => {
-      plyrRef.current = new Plyr(video, options);
-      if (currentTimeRef.current > 0) {
-        video.currentTime = currentTimeRef.current;
-        video.play().catch(() => {});
-      }
-    };
-
-    if (Hls.isSupported() && activeSource.url.includes(".m3u8")) {
-      const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+    if (activeSrc.isM3U8 && Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true, maxBufferLength: 30 });
       hlsRef.current = hls;
-      hls.loadSource(activeSource.url);
+      hls.loadSource(activeSrc.url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log("[Player] HLS Manifest parsed for:", activeSource.quality);
-        initPlyr();
+      hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
+        setHlsLevels(data.levels.map((l, i) => ({ height: l.height, index: i })));
+        setBuffering(false);
+        video.play().then(() => setPlaying(true)).catch(() => {});
       });
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error("[Player] HLS Error:", data.type, data.details, data.fatal);
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_e, data) => setActiveLevel(data.level));
+      hls.on(Hls.Events.ERROR, (_e, data) => {
         if (data.fatal) {
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.warn("[Player] Attempting network recovery...");
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.warn("[Player] Attempting media recovery...");
-              hls.recoverMediaError();
-              break;
-            default:
-              console.error("[Player] Unrecoverable error, destroying instance");
-              hls.destroy();
-              break;
-          }
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+          else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          else setError("Stream error — try another source.");
         }
       });
+    } else if (activeSrc.isM3U8 && video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = activeSrc.url;
+      video.play().then(() => setPlaying(true)).catch(() => {});
+      setBuffering(false);
     } else {
-      video.src = activeSource.url;
-      video.onloadedmetadata = () => initPlyr();
+      video.src = activeSrc.url;
+      video.load();
+      video.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      setBuffering(false);
     }
 
+    return () => { if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; } };
+  }, [activeSrc]);
+
+  // Video events
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onPlay = () => setPlaying(true);
+    const onPause = () => setPlaying(false);
+    const onTime = () => setCurrentTime(v.currentTime);
+    const onDur = () => setDuration(v.duration);
+    const onWait = () => setBuffering(true);
+    const onCan = () => setBuffering(false);
+    const onVol = () => { setVolume(v.volume); setMuted(v.muted); };
+    const onErr = () => setError("Playback error — try another source.");
+    v.addEventListener("play", onPlay); v.addEventListener("pause", onPause);
+    v.addEventListener("timeupdate", onTime); v.addEventListener("durationchange", onDur);
+    v.addEventListener("waiting", onWait); v.addEventListener("canplay", onCan);
+    v.addEventListener("volumechange", onVol); v.addEventListener("error", onErr);
     return () => {
-      if (plyrRef.current) plyrRef.current.destroy();
-      if (hlsRef.current) hlsRef.current.destroy();
+      v.removeEventListener("play", onPlay); v.removeEventListener("pause", onPause);
+      v.removeEventListener("timeupdate", onTime); v.removeEventListener("durationchange", onDur);
+      v.removeEventListener("waiting", onWait); v.removeEventListener("canplay", onCan);
+      v.removeEventListener("volumechange", onVol); v.removeEventListener("error", onErr);
     };
-  }, [activeSource, title, streamResult.sources]);
+  }, []);
 
-  const handleDownload = async () => {
-    if (!activeSource) return;
+  useEffect(() => {
+    const onFs = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
 
-    if (activeSource.url.includes(".m3u8")) {
-      toast.info("HLS Stream detected. Opening stream link...");
-      window.open(activeSource.url, "_blank");
-      return;
-    }
+  const resetHide = useCallback(() => {
+    setShowControls(true);
+    clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => { if (playing) setShowControls(false); }, 3000);
+  }, [playing]);
 
-    toast.info("Preparing native download (Blob structure)...");
-    console.log("[Download] Initiating fetch for:", activeSource.url);
-    try {
-      const response = await fetch(activeSource.url);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-      const blob = await response.blob();
-      console.log("[Download] Blob created, size:", blob.size);
-
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      const fileName = `${title.replace(/[^a-z0-9]/gi, "_")}_${activeSource.quality}.mp4`;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-
-      // Use a small timeout before revoking to ensure the browser has started the download
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
-
-      toast.success("Download started!");
-    } catch (error) {
-      console.error("[Download] Native download failed:", error);
-      toast.error("Native download failed. Trying fallback...");
-      window.open(activeSource.url, "_blank");
-    }
-
-    if (onDownload) onDownload(activeSource.url, activeSource.quality);
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.paused ? v.play().catch(() => {}) : v.pause();
   };
 
-  if (streamResult.sources.length === 0) {
+  const seek = (s: number) => {
+    const v = videoRef.current;
+    if (v) v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + s));
+  };
+
+  const handleDownload = () => {
+    if (!activeSrc) return;
+    if (onDownload) onDownload(activeSrc.url, activeSrc.quality);
+    const a = document.createElement("a");
+    a.href = activeSrc.url;
+    a.download = `${title.replace(/[^a-z0-9]/gi, "_")}.${activeSrc.isM3U8 ? "m3u8" : "mp4"}`;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  // No direct sources — show embed fallback
+  if (!streamResult.sources.length) {
     return (
-      <div className="flex aspect-video w-full flex-col items-center justify-center gap-3 bg-gray-950 text-white">
-        <AlertCircle className="h-8 w-8 text-red-400" />
-        <p className="text-sm font-semibold">No streaming sources available</p>
+      <div className="flex flex-col bg-black">
+        <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
+          {streamResult.fallbackEmbed ? (
+            <>
+              <iframe
+                src={streamResult.fallbackEmbed}
+                className="absolute inset-0 h-full w-full border-0"
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                title={title}
+              />
+              <div className="pointer-events-none absolute top-2 left-2 rounded-full bg-orange-500/90 px-2.5 py-1 text-[10px] font-bold text-white">
+                Embed mode
+              </div>
+            </>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
+              <AlertCircle className="h-8 w-8 text-red-400" />
+              <p className="text-sm font-semibold">No sources available</p>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col bg-black">
-      <div className="relative w-full overflow-hidden" style={{ aspectRatio: "16/9" }}>
-        <video ref={videoRef} className="plyr-react plyr" playsInline poster={poster} />
-        <div className="absolute top-4 left-4 flex gap-2 pointer-events-none">
-          <span className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-green-400 border border-green-400/30">
-            <Shield className="h-3 w-3" /> AD-FREE
+    <div
+      ref={containerRef}
+      className="group relative w-full select-none overflow-hidden bg-black"
+      style={{ aspectRatio: "16/9" }}
+      onMouseMove={resetHide}
+      onTouchStart={resetHide}
+      onClick={() => { togglePlay(); resetHide(); }}
+    >
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-contain"
+        poster={poster}
+        playsInline
+        preload="auto"
+      >
+        {activeSub && <track kind="subtitles" src={activeSub} default />}
+      </video>
+
+      {buffering && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        </div>
+      )}
+
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-white">
+          <AlertCircle className="h-8 w-8 text-red-400" />
+          <p className="text-sm font-semibold">{error}</p>
+          <button
+            onClick={e => { e.stopPropagation(); setError(null); if (activeSrc) setActiveSrc({ ...activeSrc }); }}
+            className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold"
+          >
+            <RefreshCw className="h-4 w-4" /> Retry
+          </button>
+        </div>
+      )}
+
+      {/* Controls */}
+      <div
+        className={`absolute inset-0 flex flex-col justify-end transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent pointer-events-none" />
+
+        <div className="relative px-4 pb-1">
+          <p className="text-[11px] font-semibold text-white/60 line-clamp-1">{title}</p>
+        </div>
+
+        {/* Seek bar */}
+        <div className="relative px-4 pb-2">
+          <input
+            type="range" min={0} max={duration || 100} value={currentTime}
+            onChange={e => { const v = videoRef.current; if (v) v.currentTime = Number(e.target.value); }}
+            className="kscene-seek w-full h-1 cursor-pointer appearance-none rounded-full"
+            style={{ background: `linear-gradient(to right,#e8503a ${progress}%,rgba(255,255,255,.2) ${progress}%)` }}
+          />
+        </div>
+
+        {/* Bottom row */}
+        <div className="relative flex items-center gap-1 px-3 pb-4">
+          <button onClick={togglePlay} className="p-1.5 text-white hover:text-primary transition">
+            {playing ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current" />}
+          </button>
+          <button onClick={() => seek(-10)} className="p-1.5 text-white/70 hover:text-white transition">
+            <SkipBack className="h-5 w-5" />
+          </button>
+          <button onClick={() => seek(10)} className="p-1.5 text-white/70 hover:text-white transition">
+            <SkipForward className="h-5 w-5" />
+          </button>
+          <span className="text-[11px] font-mono text-white/60 tabular-nums">
+            {fmtTime(currentTime)} / {fmtTime(duration)}
           </span>
-          {dataSaver && (
-            <span className="flex items-center gap-1 bg-primary/80 backdrop-blur-md px-2 py-1 rounded text-[10px] font-bold text-white shadow-lift">
-              <Zap className="h-3 w-3 fill-current" /> DATA SAVER
-            </span>
+
+          <div className="flex-1" />
+
+          {/* Volume */}
+          <button onClick={() => { const v = videoRef.current; if (v) v.muted = !v.muted; }} className="p-1.5 text-white/70 hover:text-white transition">
+            {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+          <input
+            type="range" min={0} max={1} step={0.05} value={muted ? 0 : volume}
+            onChange={e => { const v = videoRef.current; if (v) { v.volume = Number(e.target.value); v.muted = Number(e.target.value) === 0; } }}
+            className="kscene-seek hidden sm:block w-20 h-1 cursor-pointer appearance-none rounded-full"
+            style={{ background: `linear-gradient(to right,#e8503a ${(muted ? 0 : volume) * 100}%,rgba(255,255,255,.2) ${(muted ? 0 : volume) * 100}%)` }}
+          />
+
+          {streamResult.subtitles.length > 0 && (
+            <button onClick={() => setShowSubs(s => !s)} className={`p-1.5 transition ${showSubs ? "text-primary" : "text-white/70 hover:text-white"}`}>
+              <Subtitles className="h-5 w-5" />
+            </button>
           )}
-        </div>
-      </div>
 
-      <div className="flex items-center gap-3 overflow-x-auto bg-gray-950 px-4 py-3 border-t border-white/5 scrollbar-hide">
-        <button
-          onClick={() => setDataSaver(!dataSaver)}
-          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-widest transition ${
-            dataSaver ? "bg-primary text-white" : "bg-white/5 text-white/50 hover:bg-white/10"
-          }`}
-        >
-          <Zap className={`h-3.5 w-3.5 ${dataSaver ? "fill-current" : ""}`} />
-          Data Saver
-        </button>
-
-        <div className="h-6 w-[1px] bg-white/10 mx-1 shrink-0" />
-
-        {streamResult.sources.map((src, i) => (
-          <button
-            key={i}
-            onClick={() => {
-              if (videoRef.current) currentTimeRef.current = videoRef.current.currentTime;
-              setActiveSource(src);
-            }}
-            className={`shrink-0 rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-widest transition border ${
-              activeSource?.url === src.url
-                ? "bg-primary/20 text-primary border-primary/50"
-                : "bg-white/5 text-white/40 border-transparent hover:bg-white/10"
-            }`}
-          >
-            {src.quality}
+          <button onClick={() => setShowSettings(s => !s)} className={`p-1.5 transition ${showSettings ? "text-primary" : "text-white/70 hover:text-white"}`}>
+            <Settings className="h-5 w-5" />
           </button>
-        ))}
 
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={onSmartDownload}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-green-500/10 border border-green-500/20 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-green-500 hover:bg-green-500 hover:text-white transition"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5" /> Smart Download
+          <button onClick={handleDownload} className="p-1.5 text-white/70 hover:text-primary transition">
+            <Download className="h-5 w-5" />
           </button>
-          <button
-            onClick={handleDownload}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-[11px] font-black uppercase tracking-widest text-white/50 hover:bg-primary hover:text-white transition"
-          >
-            <Download className="h-3.5 w-3.5" /> Download
+
+          <button onClick={() => { const el = containerRef.current; if (!el) return; document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }} className="p-1.5 text-white/70 hover:text-white transition">
+            {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
           </button>
         </div>
+
+        {/* Settings panel */}
+        {showSettings && (
+          <div className="absolute bottom-16 right-3 w-52 rounded-2xl border border-white/10 bg-gray-950/95 p-3 text-xs text-white backdrop-blur" onClick={e => e.stopPropagation()}>
+            {hlsLevels.length > 0 && (
+              <div className="mb-3">
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">Quality</p>
+                {[{ label: "Auto", index: -1 }, ...hlsLevels.map(l => ({ label: `${l.height}p`, index: l.index }))].map(q => (
+                  <button key={q.index} onClick={() => { if (hlsRef.current) hlsRef.current.currentLevel = q.index; setActiveLevel(q.index); setShowSettings(false); }}
+                    className={`mb-1 w-full rounded-xl px-3 py-1.5 text-left font-semibold transition ${activeLevel === q.index ? "bg-primary text-white" : "hover:bg-white/10"}`}>
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {streamResult.sources.length > 1 && (
+              <div>
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">Source</p>
+                {streamResult.sources.map((src, i) => (
+                  <button key={i} onClick={() => { setActiveSrc(src); setShowSettings(false); }}
+                    className={`mb-1 w-full rounded-xl px-3 py-1.5 text-left font-semibold transition ${activeSrc?.url === src.url ? "bg-primary text-white" : "hover:bg-white/10"}`}>
+                    {src.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Subtitle panel */}
+        {showSubs && streamResult.subtitles.length > 0 && (
+          <div className="absolute bottom-16 right-20 w-44 rounded-2xl border border-white/10 bg-gray-950/95 p-3 text-xs text-white backdrop-blur" onClick={e => e.stopPropagation()}>
+            <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">Subtitles</p>
+            {[{ url: null, lang: "Off" }, ...streamResult.subtitles].map((sub, i) => (
+              <button key={i} onClick={() => { setActiveSub(sub.url); setShowSubs(false); }}
+                className={`mb-1 w-full rounded-xl px-3 py-1.5 text-left font-semibold transition ${activeSub === sub.url ? "bg-primary text-white" : "hover:bg-white/10"}`}>
+                {sub.lang}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+
+      <style>{`
+        .kscene-seek::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#e8503a;cursor:pointer;}
+        .kscene-seek::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#e8503a;cursor:pointer;border:none;}
+      `}</style>
     </div>
   );
 }
