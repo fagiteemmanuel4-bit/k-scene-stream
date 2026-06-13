@@ -3,13 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useCallback } from "react";
 import { Play, Plus, Check, Star, Clock, Calendar, ChevronLeft, Layers } from "lucide-react";
 import { getDetail, getSeason, img } from "@/lib/tmdb";
-import { PosterCard, PosterSkeleton } from "@/components/PosterCard";
+import { PosterCard } from "@/components/PosterCard";
 import { useWatchlist } from "@/lib/watchlist";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { AuthModal } from "@/components/AuthModal";
 import { useAuth } from "@/lib/auth";
 import { getEpisodeStream } from "@/lib/consumet";
-import { useWatchHistory, useDownloads, useSettings } from "@/lib/userdata";
+import { useWatchHistory, useDownloads } from "@/lib/userdata";
 import type { StreamResult } from "@/lib/consumet";
 
 export const Route = createFileRoute("/title/$id")({
@@ -17,12 +17,42 @@ export const Route = createFileRoute("/title/$id")({
   component: TitlePage,
 });
 
+interface CastMember {
+  id: number;
+  name: string;
+  profile_path: string | null;
+}
+
+interface Recommendation {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  vote_average: number;
+}
+
+interface TMDBDetail {
+  id: number;
+  name?: string;
+  title?: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  tagline?: string;
+  vote_average: number;
+  first_air_date?: string;
+  episode_run_time?: number[];
+  genres: { id: number; name: string }[];
+  seasons?: { id: number; name: string; season_number: number }[];
+  credits?: { cast: CastMember[] };
+  recommendations?: { results: Recommendation[] };
+}
+
 function TitlePage() {
   const { id } = Route.useParams();
   const tid = Number(id);
   const { data, isLoading } = useQuery({
     queryKey: ["detail", tid],
-    queryFn: () => getDetail(tid),
+    queryFn: () => getDetail(tid) as Promise<TMDBDetail>,
   });
   const [season, setSeason] = useState<number>(1);
   const { has, toggle } = useWatchlist();
@@ -33,7 +63,6 @@ function TitlePage() {
   const [streamLoading, setStreamLoading] = useState(false);
   const { addToHistory } = useWatchHistory();
   const { addDownload } = useDownloads();
-  const { settings } = useSettings();
   const [showEps, setShowEps] = useState(true);
 
   const seasonQ = useQuery({
@@ -95,8 +124,8 @@ function TitlePage() {
     );
   }
 
-  const cast = (data as any).credits?.cast?.slice(0, 12) || [];
-  const recs = (data as any).recommendations?.results || [];
+  const cast = data.credits?.cast?.slice(0, 12) || [];
+  const recs = data.recommendations?.results || [];
   const title = data.name || data.title || "";
   const saved = has(tid);
 
@@ -342,7 +371,7 @@ function TitlePage() {
           <section className="bg-white border-b px-4 py-4">
             <h2 className="mb-3 font-bold">Cast</h2>
             <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-1">
-              {cast.map((c: any) => (
+              {cast.map((c) => (
                 <div key={c.id} className="flex w-16 shrink-0 flex-col items-center text-center">
                   <div className="h-16 w-16 overflow-hidden rounded-full bg-gray-100 ring-2 ring-gray-200">
                     {c.profile_path ? (
@@ -372,7 +401,7 @@ function TitlePage() {
           <section className="bg-white px-4 py-4">
             <h2 className="mb-3 font-bold">You May Also Like</h2>
             <div className="grid grid-cols-3 gap-3">
-              {recs.slice(0, 9).map((t: any) => (
+              {recs.slice(0, 9).map((t) => (
                 <PosterCard key={t.id} t={t} />
               ))}
             </div>

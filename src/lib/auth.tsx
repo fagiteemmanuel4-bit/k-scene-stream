@@ -34,10 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseSignUp(email, password, name);
       return { error: null };
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const error = e as { message?: string };
       return {
         error:
-          e.message
+          error.message
             ?.replace("Firebase: ", "")
             .replace(/\(auth\/.*?\)\.?/, "")
             .trim() || "Sign up failed",
@@ -49,10 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseSignIn(email, password);
       return { error: null };
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const error = e as { message?: string };
       return {
         error:
-          e.message
+          error.message
             ?.replace("Firebase: ", "")
             .replace(/\(auth\/.*?\)\.?/, "")
             .trim() || "Login failed",

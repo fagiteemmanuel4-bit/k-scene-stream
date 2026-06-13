@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { BottomNav } from "../components/BottomNav";
 import { AuthProvider } from "../lib/auth";
 import { StreakOverlay } from "../components/StreakOverlay";
+import { CelebrityPopup } from "../components/CelebrityPopup";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
@@ -39,6 +40,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <StreakOverlay />
+        <CelebrityPopup />
         <main className="min-h-screen bg-gray-50 pb-20">
           <Outlet />
         </main>

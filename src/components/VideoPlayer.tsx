@@ -42,6 +42,7 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
         setActiveSource(source);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streamResult, dataSaver]);
 
   // Initialize Player

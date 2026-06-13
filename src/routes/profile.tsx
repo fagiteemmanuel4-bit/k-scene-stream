@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   LogOut,
   Settings,
@@ -57,7 +57,7 @@ function ProfilePage() {
   const [showAuth, setShowAuth] = useState(false);
   const [authTab, setAuthTab] = useState<"login" | "signup">("login");
   const [activeTab, setActiveTab] = useState<Tab>("watchlist");
-  const { list: watchlist, toggle } = useWatchlist();
+  const { list: watchlist } = useWatchlist();
   const { list: history, clearHistory } = useWatchHistory();
   const { list: downloads, removeDownload } = useDownloads();
   const { settings, update } = useSettings();
@@ -105,10 +105,20 @@ function ProfilePage() {
     .toUpperCase();
   const streakCount = streak?.count || 0;
 
-  const TABS: { key: Tab; label: string; icon: any; count?: number }[] = [
-    { key: "watchlist", label: "Watchlist", icon: Bookmark, count: watchlist.length },
-    { key: "history", label: "Recent", icon: Clock, count: history.length },
-    { key: "downloads", label: "Downloads", icon: Download, count: downloads.length },
+  const TABS: { key: Tab; label: string; icon: typeof Settings; count?: number }[] = [
+    {
+      key: "watchlist",
+      label: "Watchlist",
+      icon: Bookmark as typeof Settings,
+      count: watchlist.length,
+    },
+    { key: "history", label: "Recent", icon: Clock as typeof Settings, count: history.length },
+    {
+      key: "downloads",
+      label: "Downloads",
+      icon: Download as typeof Settings,
+      count: downloads.length,
+    },
     { key: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -400,7 +410,9 @@ function ProfilePage() {
                     type="radio"
                     className="sr-only"
                     checked={settings.streamingQuality === q.value}
-                    onChange={() => update({ streamingQuality: q.value as any })}
+                    onChange={() =>
+                      update({ streamingQuality: q.value as "auto" | "360p" | "720p" | "1080p" })
+                    }
                   />
                   <span className="text-sm text-gray-700">{q.label}</span>
                 </label>
