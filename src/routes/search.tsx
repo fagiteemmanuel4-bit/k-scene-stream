@@ -40,13 +40,16 @@ function SearchPage() {
           <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={q}
-            onChange={e => setQ(e.target.value)}
+            onChange={(e) => setQ(e.target.value)}
             placeholder="Search K-dramas, actors…"
             autoFocus
             className="w-full rounded-2xl border bg-card py-4 pl-12 pr-12 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
           />
           {q && (
-            <button onClick={() => setQ("")} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setQ("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
               <X className="h-4 w-4" />
             </button>
           )}
@@ -57,7 +60,9 @@ function SearchPage() {
         <div className="mx-auto max-w-5xl">
           {isLoading ? (
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-              {Array.from({ length: 12 }).map((_, i) => <PosterSkeleton key={i} />)}
+              {Array.from({ length: 12 }).map((_, i) => (
+                <PosterSkeleton key={i} />
+              ))}
             </div>
           ) : results?.length ? (
             <>
@@ -65,22 +70,30 @@ function SearchPage() {
                 {results.length} results for "{debouncedQ}"
               </p>
               <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-                {results.map(t => <PosterCard key={t.id} t={t} />)}
+                {results.map((t) => (
+                  <PosterCard key={t.id} t={t} />
+                ))}
               </div>
             </>
           ) : (
             <div className="mt-20 text-center">
               <p className="text-4xl">🔍</p>
               <p className="mt-3 font-semibold">No results for "{debouncedQ}"</p>
-              <p className="mt-1 text-sm text-muted-foreground">Try a different spelling or keyword</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Try a different spelling or keyword
+              </p>
             </div>
           )}
         </div>
       ) : (
         <div className="mx-auto max-w-5xl">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Trending Now 🔥</p>
+          <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Trending Now 🔥
+          </p>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-            {trending?.slice(0, 18).map(t => <PosterCard key={t.id} t={t} />)}
+            {trending?.slice(0, 18).map((t) => (
+              <PosterCard key={t.id} t={t} />
+            ))}
           </div>
         </div>
       )}

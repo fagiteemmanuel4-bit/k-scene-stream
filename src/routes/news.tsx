@@ -20,16 +20,48 @@ type Article = {
 };
 
 const SOURCES = [
-  { name: "Soompi", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.soompi.com%2Ffeed&count=20", color: "#e8503a" },
-  { name: "Koreaboo", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.koreaboo.com%2Ffeed%2F&count=20", color: "#7c3aed" },
-  { name: "Allkpop", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.allkpop.com%2Ffeed&count=20", color: "#0891b2" },
-  { name: "Drama Beans", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.dramabeans.com%2Ffeed%2F&count=20", color: "#059669" },
-  { name: "KDrama Stars", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkdramastars.com%2Ffeed%2F&count=20", color: "#d97706" },
-  { name: "MyDramaList", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fmydramalist.com%2Ffeed%2Fnews&count=20", color: "#db2777" },
+  {
+    name: "Soompi",
+    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.soompi.com%2Ffeed&count=20",
+    color: "#e8503a",
+  },
+  {
+    name: "Koreaboo",
+    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.koreaboo.com%2Ffeed%2F&count=20",
+    color: "#7c3aed",
+  },
+  {
+    name: "Allkpop",
+    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.allkpop.com%2Ffeed&count=20",
+    color: "#0891b2",
+  },
+  {
+    name: "Drama Beans",
+    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.dramabeans.com%2Ffeed%2F&count=20",
+    color: "#059669",
+  },
+  {
+    name: "KDrama Stars",
+    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkdramastars.com%2Ffeed%2F&count=20",
+    color: "#d97706",
+  },
+  {
+    name: "MyDramaList",
+    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fmydramalist.com%2Ffeed%2Fnews&count=20",
+    color: "#db2777",
+  },
 ];
 
 function stripHtml(html: string) {
-  return html.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+  return html
+    .replace(/<[^>]*>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function extractImage(html: string): string | undefined {
@@ -71,7 +103,9 @@ async function fetchSource(src: (typeof SOURCES)[number]): Promise<Article[]> {
         sourceColor: src.color,
       };
     });
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 const PAGE_SIZE = 12;
@@ -87,10 +121,10 @@ function NewsPage() {
   // Load all sources
   useEffect(() => {
     setLoading(true);
-    Promise.all(SOURCES.map(fetchSource)).then(results => {
-      const all = results.flat().sort((a, b) =>
-        new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
-      );
+    Promise.all(SOURCES.map(fetchSource)).then((results) => {
+      const all = results
+        .flat()
+        .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
       setArticles(all);
       setLoading(false);
     });
@@ -100,23 +134,25 @@ function NewsPage() {
   useEffect(() => {
     const el = loaderRef.current;
     if (!el) return;
-    const obs = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) {
-        setVisibleCount(prev => prev + PAGE_SIZE);
-      }
-    }, { threshold: 0.1 });
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => prev + PAGE_SIZE);
+        }
+      },
+      { threshold: 0.1 },
+    );
     obs.observe(el);
     return () => obs.disconnect();
   }, [articles.length]);
 
-  const filtered = activeFilter === "All"
-    ? articles
-    : articles.filter(a => a.source === activeFilter);
+  const filtered =
+    activeFilter === "All" ? articles : articles.filter((a) => a.source === activeFilter);
 
   const visible = filtered.slice(0, visibleCount);
 
   const toggleExpand = (link: string) => {
-    setExpanded(prev => {
+    setExpanded((prev) => {
       const n = new Set(prev);
       n.has(link) ? n.delete(link) : n.add(link);
       return n;
@@ -133,20 +169,26 @@ function NewsPage() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h1 className="text-xl font-black text-gray-900">K·News</h1>
-              <p className="text-xs text-gray-500">{articles.length} articles from {SOURCES.length} sources</p>
+              <p className="text-xs text-gray-500">
+                {articles.length} articles from {SOURCES.length} sources
+              </p>
             </div>
             {loading && <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />}
           </div>
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {["All", ...SOURCES.map(s => s.name)].map(name => (
+            {["All", ...SOURCES.map((s) => s.name)].map((name) => (
               <button
                 key={name}
-                onClick={() => { setActiveFilter(name); setVisibleCount(PAGE_SIZE); }}
+                onClick={() => {
+                  setActiveFilter(name);
+                  setVisibleCount(PAGE_SIZE);
+                }}
                 className="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition"
                 style={{
-                  backgroundColor: activeFilter === name
-                    ? (SOURCES.find(s => s.name === name)?.color || "#e8503a")
-                    : "#f3f4f6",
+                  backgroundColor:
+                    activeFilter === name
+                      ? SOURCES.find((s) => s.name === name)?.color || "#e8503a"
+                      : "#f3f4f6",
                   color: activeFilter === name ? "#fff" : "#6b7280",
                 }}
               >
@@ -194,7 +236,12 @@ function NewsPage() {
   );
 }
 
-function ArticleCard({ article, featured, expanded, onToggle }: {
+function ArticleCard({
+  article,
+  featured,
+  expanded,
+  onToggle,
+}: {
   article: Article;
   featured?: boolean;
   expanded: boolean;
@@ -203,7 +250,9 @@ function ArticleCard({ article, featured, expanded, onToggle }: {
   const [videoPlaying, setVideoPlaying] = useState(false);
 
   return (
-    <div className={`overflow-hidden rounded-2xl bg-white shadow-card ${featured ? "ring-2 ring-primary/30" : ""}`}>
+    <div
+      className={`overflow-hidden rounded-2xl bg-white shadow-card ${featured ? "ring-2 ring-primary/30" : ""}`}
+    >
       {/* Media */}
       {article.videoEmbed && videoPlaying ? (
         <div className="aspect-video w-full">
@@ -248,7 +297,9 @@ function ArticleCard({ article, featured, expanded, onToggle }: {
       {/* Content */}
       <div className="p-4">
         {!article.image && <SourceChip name={article.source} color={article.sourceColor} />}
-        <h2 className={`font-bold text-gray-900 leading-snug ${featured ? "text-lg mt-2" : "text-sm mt-1"}`}>
+        <h2
+          className={`font-bold text-gray-900 leading-snug ${featured ? "text-lg mt-2" : "text-sm mt-1"}`}
+        >
           {article.title}
         </h2>
         <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
@@ -256,7 +307,9 @@ function ArticleCard({ article, featured, expanded, onToggle }: {
         </p>
 
         {/* Expandable content */}
-        <div className={`mt-2 overflow-hidden transition-all text-sm text-gray-600 leading-relaxed ${expanded ? "" : "line-clamp-3"}`}>
+        <div
+          className={`mt-2 overflow-hidden transition-all text-sm text-gray-600 leading-relaxed ${expanded ? "" : "line-clamp-3"}`}
+        >
           {article.fullContent || article.description}
         </div>
 
@@ -266,9 +319,13 @@ function ArticleCard({ article, featured, expanded, onToggle }: {
             className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
           >
             {expanded ? (
-              <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
+              <>
+                <ChevronUp className="h-3.5 w-3.5" /> Show less
+              </>
             ) : (
-              <><ChevronDown className="h-3.5 w-3.5" /> Read more</>
+              <>
+                <ChevronDown className="h-3.5 w-3.5" /> Read more
+              </>
             )}
           </button>
           <a

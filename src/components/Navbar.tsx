@@ -24,7 +24,9 @@ export function Navbar() {
     <header
       className="fixed top-0 z-50 w-full transition-all duration-300"
       style={{
-        backgroundColor: scrolled ? "color-mix(in oklab, var(--color-background) 88%, transparent)" : "transparent",
+        backgroundColor: scrolled
+          ? "color-mix(in oklab, var(--color-background) 88%, transparent)"
+          : "transparent",
         backdropFilter: scrolled ? "blur(14px)" : "none",
         borderBottom: scrolled ? "1px solid var(--color-border)" : "1px solid transparent",
       }}
@@ -56,7 +58,10 @@ export function Navbar() {
           ))}
         </nav>
 
-        <form onSubmit={submit} className="ml-auto flex flex-1 items-center justify-end gap-2 sm:flex-none">
+        <form
+          onSubmit={submit}
+          className="ml-auto flex flex-1 items-center justify-end gap-2 sm:flex-none"
+        >
           <div className="relative w-full max-w-xs">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input

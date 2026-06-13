@@ -25,7 +25,11 @@ const DOWNLOADS_KEY = "kscene_downloads_v1";
 
 function read<T>(key: string): T[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(key) || "[]");
+  } catch {
+    return [];
+  }
 }
 function write<T>(key: string, v: T[], eventName: string) {
   localStorage.setItem(key, JSON.stringify(v));
@@ -42,8 +46,14 @@ export function useWatchHistory() {
   }, []);
 
   const addToHistory = useCallback((e: Omit<WatchedEntry, "watchedAt">) => {
-    const cur = read<WatchedEntry>(HISTORY_KEY).filter(x => !(x.id === e.id && x.episode === e.episode));
-    write<WatchedEntry>(HISTORY_KEY, [{ ...e, watchedAt: Date.now() }, ...cur].slice(0, 50), "kscene:history");
+    const cur = read<WatchedEntry>(HISTORY_KEY).filter(
+      (x) => !(x.id === e.id && x.episode === e.episode),
+    );
+    write<WatchedEntry>(
+      HISTORY_KEY,
+      [{ ...e, watchedAt: Date.now() }, ...cur].slice(0, 50),
+      "kscene:history",
+    );
   }, []);
 
   const clearHistory = useCallback(() => {
@@ -64,11 +74,15 @@ export function useDownloads() {
 
   const addDownload = useCallback((e: Omit<DownloadEntry, "downloadedAt">) => {
     const cur = read<DownloadEntry>(DOWNLOADS_KEY);
-    write<DownloadEntry>(DOWNLOADS_KEY, [{ ...e, downloadedAt: Date.now() }, ...cur].slice(0, 100), "kscene:downloads");
+    write<DownloadEntry>(
+      DOWNLOADS_KEY,
+      [{ ...e, downloadedAt: Date.now() }, ...cur].slice(0, 100),
+      "kscene:downloads",
+    );
   }, []);
 
   const removeDownload = useCallback((url: string) => {
-    const cur = read<DownloadEntry>(DOWNLOADS_KEY).filter(x => x.url !== url);
+    const cur = read<DownloadEntry>(DOWNLOADS_KEY).filter((x) => x.url !== url);
     write<DownloadEntry>(DOWNLOADS_KEY, cur, "kscene:downloads");
   }, []);
 
@@ -88,11 +102,15 @@ const SETTINGS_KEY = "kscene_settings_v1";
 export function useSettings() {
   const [settings, setSettings] = useState<Settings>(() => {
     if (typeof window === "undefined") return DEFAULTS;
-    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") }; } catch { return DEFAULTS; }
+    try {
+      return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") };
+    } catch {
+      return DEFAULTS;
+    }
   });
 
   const update = useCallback((patch: Partial<Settings>) => {
-    setSettings(prev => {
+    setSettings((prev) => {
       const next = { ...prev, ...patch };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
       return next;

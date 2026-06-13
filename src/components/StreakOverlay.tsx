@@ -42,7 +42,11 @@ export function StreakOverlay() {
       const t1 = setTimeout(() => setPhase("hold"), 600);
       const t2 = setTimeout(() => setPhase("out"), 3200);
       const t3 = setTimeout(() => setShow(false), 4000);
-      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
     }
   }, [user]);
 
@@ -59,11 +63,12 @@ export function StreakOverlay() {
         className="streak-card flex flex-col items-center gap-2 rounded-3xl px-10 py-8 shadow-hero"
         style={{
           background: "linear-gradient(135deg, #e8503a, #ff8c6b)",
-          animation: phase === "in"
-            ? "streakIn 0.6s cubic-bezier(.34,1.56,.64,1) forwards"
-            : phase === "out"
-            ? "streakOut 0.8s ease-in forwards"
-            : "none",
+          animation:
+            phase === "in"
+              ? "streakIn 0.6s cubic-bezier(.34,1.56,.64,1) forwards"
+              : phase === "out"
+                ? "streakOut 0.8s ease-in forwards"
+                : "none",
           opacity: phase === "hold" ? 1 : undefined,
           transform: phase === "hold" ? "scale(1)" : undefined,
         }}
@@ -75,7 +80,13 @@ export function StreakOverlay() {
             {streak === 1 ? "Day 1 Streak!" : `${streak} Day Streak!`}
           </p>
           <p className="text-sm font-medium opacity-80">
-            {streak >= 30 ? "Legendary viewer 🏆" : streak >= 14 ? "Dedicated fan 🔥" : streak >= 7 ? "K-drama addict 💜" : "Keep it up!"}
+            {streak >= 30
+              ? "Legendary viewer 🏆"
+              : streak >= 14
+                ? "Dedicated fan 🔥"
+                : streak >= 7
+                  ? "K-drama addict 💜"
+                  : "Keep it up!"}
           </p>
         </div>
       </div>
@@ -96,5 +107,9 @@ export function StreakOverlay() {
 
 // Exposed for profile page to read streak count
 export function getStreakData(): StreakData | null {
-  try { return JSON.parse(localStorage.getItem(STREAK_KEY) || "null"); } catch { return null; }
+  try {
+    return JSON.parse(localStorage.getItem(STREAK_KEY) || "null");
+  } catch {
+    return null;
+  }
 }

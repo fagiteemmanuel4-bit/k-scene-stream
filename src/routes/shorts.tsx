@@ -39,7 +39,7 @@ async function fetchYTShorts(query: string): Promise<Short[]> {
     // Since we can't scrape YT directly (CORS), use the public Piped/Invidious API
     const res = await fetch(
       `https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(query)}&filter=videos`,
-      { signal: AbortSignal.timeout(5000) }
+      { signal: AbortSignal.timeout(5000) },
     );
     if (!res.ok) throw new Error("piped fail");
     const data = await res.json();
@@ -65,9 +65,13 @@ async function fetchTMDBShorts(page: number): Promise<Short[]> {
   const combined = [...trending, ...popular];
   const seen = new Set<number>();
   return combined
-    .filter(t => { if (seen.has(t.id)) return false; seen.add(t.id); return true; })
-    .filter(t => t.backdrop_path)
-    .map(t => ({
+    .filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    })
+    .filter((t) => t.backdrop_path)
+    .map((t) => ({
       type: "tmdb" as const,
       id: `tmdb-${t.id}`,
       title: t.name || t.title || "",
@@ -92,14 +96,12 @@ function ShortsPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [tmdb, yt] = await Promise.all([
-        fetchTMDBShorts(1),
-        fetchYTShorts(YT_QUERIES[0]),
-      ]);
+      const [tmdb, yt] = await Promise.all([fetchTMDBShorts(1), fetchYTShorts(YT_QUERIES[0])]);
       setYtLoaded(true);
       // Interleave: 2 TMDB, 1 YT, repeat
       const merged: Short[] = [];
-      let ti = 0, yi = 0;
+      let ti = 0,
+        yi = 0;
       while (ti < tmdb.length || yi < yt.length) {
         if (ti < tmdb.length) merged.push(tmdb[ti++]);
         if (ti < tmdb.length) merged.push(tmdb[ti++]);
@@ -120,15 +122,16 @@ function ShortsPage() {
         fetchYTShorts(YT_QUERIES[nextPage % YT_QUERIES.length] || YT_QUERIES[0]),
       ]).then(([tmdb, yt]) => {
         const merged: Short[] = [];
-        let ti = 0, yi = 0;
+        let ti = 0,
+          yi = 0;
         while (ti < tmdb.length || yi < yt.length) {
           if (ti < tmdb.length) merged.push(tmdb[ti++]);
           if (ti < tmdb.length) merged.push(tmdb[ti++]);
           if (yi < yt.length) merged.push(yt[yi++]);
         }
-        setAll(prev => {
-          const seen = new Set(prev.map(s => s.id));
-          return [...prev, ...merged.filter(s => !seen.has(s.id))];
+        setAll((prev) => {
+          const seen = new Set(prev.map((s) => s.id));
+          return [...prev, ...merged.filter((s) => !seen.has(s.id))];
         });
         setPage(nextPage);
         setLoading(false);
@@ -139,25 +142,26 @@ function ShortsPage() {
   // IntersectionObserver for active index
   useEffect(() => {
     const obs = new IntersectionObserver(
-      entries => {
+      (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
-            const idx = cardRefs.current.findIndex(r => r === e.target);
+            const idx = cardRefs.current.findIndex((r) => r === e.target);
             if (idx !== -1) setActiveIndex(idx);
           }
         }
       },
-      { threshold: 0.6 }
+      { threshold: 0.6 },
     );
-    cardRefs.current.forEach(r => r && obs.observe(r));
+    cardRefs.current.forEach((r) => r && obs.observe(r));
     return () => obs.disconnect();
   }, [all.length]);
 
-  const toggleLike = (id: string) => setLiked(prev => {
-    const n = new Set(prev);
-    n.has(id) ? n.delete(id) : n.add(id);
-    return n;
-  });
+  const toggleLike = (id: string) =>
+    setLiked((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
 
   if (loading && all.length === 0) {
     return (
@@ -179,14 +183,26 @@ function ShortsPage() {
         {all.map((short, i) => (
           <div
             key={short.id}
-            ref={el => { cardRefs.current[i] = el; }}
+            ref={(el) => {
+              cardRefs.current[i] = el;
+            }}
             className="relative flex h-[100dvh] w-full shrink-0 flex-col overflow-hidden"
             style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
           >
             {short.type === "youtube" && short.ytVideoId ? (
-              <YouTubeShort short={short} active={i === activeIndex} liked={liked.has(short.id)} onLike={() => toggleLike(short.id)} />
+              <YouTubeShort
+                short={short}
+                active={i === activeIndex}
+                liked={liked.has(short.id)}
+                onLike={() => toggleLike(short.id)}
+              />
             ) : (
-              <TMDBShort short={short} active={i === activeIndex} liked={liked.has(short.id)} onLike={() => toggleLike(short.id)} />
+              <TMDBShort
+                short={short}
+                active={i === activeIndex}
+                liked={liked.has(short.id)}
+                onLike={() => toggleLike(short.id)}
+              />
             )}
           </div>
         ))}
@@ -215,7 +231,17 @@ function ShortsPage() {
   );
 }
 
-function YouTubeShort({ short, active, liked, onLike }: { short: Short; active: boolean; liked: boolean; onLike: () => void }) {
+function YouTubeShort({
+  short,
+  active,
+  liked,
+  onLike,
+}: {
+  short: Short;
+  active: boolean;
+  liked: boolean;
+  onLike: () => void;
+}) {
   const [playing, setPlaying] = useState(false);
 
   return (
@@ -224,7 +250,11 @@ function YouTubeShort({ short, active, liked, onLike }: { short: Short; active: 
       {!playing ? (
         <>
           {short.backdrop && (
-            <img src={short.backdrop} alt={short.title} className="absolute inset-0 h-full w-full object-cover opacity-80" />
+            <img
+              src={short.backdrop}
+              alt={short.title}
+              className="absolute inset-0 h-full w-full object-cover opacity-80"
+            />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/20" />
           <button
@@ -254,7 +284,9 @@ function YouTubeShort({ short, active, liked, onLike }: { short: Short; active: 
             <span className="text-xs font-semibold text-red-400">{short.channelName}</span>
           </div>
           <h2 className="text-lg font-black text-white leading-snug line-clamp-3">{short.title}</h2>
-          {short.overview && <p className="mt-2 text-sm text-white/70 line-clamp-2">{short.overview}</p>}
+          {short.overview && (
+            <p className="mt-2 text-sm text-white/70 line-clamp-2">{short.overview}</p>
+          )}
         </div>
       )}
 
@@ -284,7 +316,17 @@ function YouTubeShort({ short, active, liked, onLike }: { short: Short; active: 
   );
 }
 
-function TMDBShort({ short, active, liked, onLike }: { short: Short; active: boolean; liked: boolean; onLike: () => void }) {
+function TMDBShort({
+  short,
+  active,
+  liked,
+  onLike,
+}: {
+  short: Short;
+  active: boolean;
+  liked: boolean;
+  onLike: () => void;
+}) {
   return (
     <div className="relative flex h-full flex-col bg-black">
       {short.backdrop && (
@@ -301,12 +343,22 @@ function TMDBShort({ short, active, liked, onLike }: { short: Short; active: boo
       <div className="absolute bottom-24 left-0 right-16 px-5">
         <div className="flex items-center gap-2 mb-2">
           {short.poster && (
-            <img src={img(short.poster, "w92")} alt="" className="h-9 w-6 rounded object-cover ring-1 ring-white/20" />
+            <img
+              src={img(short.poster, "w92")}
+              alt=""
+              className="h-9 w-6 rounded object-cover ring-1 ring-white/20"
+            />
           )}
-          <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">K·Drama</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+            K·Drama
+          </span>
         </div>
         <h2 className="text-xl font-black text-white leading-snug line-clamp-2">{short.title}</h2>
-        {short.overview && <p className="mt-2 text-sm text-white/70 leading-relaxed line-clamp-3">{short.overview}</p>}
+        {short.overview && (
+          <p className="mt-2 text-sm text-white/70 leading-relaxed line-clamp-3">
+            {short.overview}
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {short.vote_average && (
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white backdrop-blur">
@@ -334,7 +386,11 @@ function TMDBShort({ short, active, liked, onLike }: { short: Short; active: boo
           onClick={onLike}
         />
         {short.tmdbId && (
-          <Link to="/title/$id" params={{ id: String(short.tmdbId) }} className="flex flex-col items-center gap-1">
+          <Link
+            to="/title/$id"
+            params={{ id: String(short.tmdbId) }}
+            className="flex flex-col items-center gap-1"
+          >
             <div className="grid h-12 w-12 place-items-center rounded-full bg-white/15 text-white backdrop-blur hover:bg-primary/60 transition">
               <Play className="h-5 w-5" />
             </div>
@@ -346,17 +402,32 @@ function TMDBShort({ short, active, liked, onLike }: { short: Short; active: boo
       {/* Progress dots */}
       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1">
         {[...Array(3)].map((_, di) => (
-          <div key={di} className={`rounded-full transition-all ${di === 1 ? "h-4 w-1 bg-white" : "h-1 w-1 bg-white/40"}`} />
+          <div
+            key={di}
+            className={`rounded-full transition-all ${di === 1 ? "h-4 w-1 bg-white" : "h-1 w-1 bg-white/40"}`}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function ActionBtn({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+function ActionBtn({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-1">
-      <div className={`grid h-12 w-12 place-items-center rounded-full backdrop-blur-md transition ${active ? "bg-red-500 text-white scale-110" : "bg-white/15 text-white hover:bg-white/25"}`}>
+      <div
+        className={`grid h-12 w-12 place-items-center rounded-full backdrop-blur-md transition ${active ? "bg-red-500 text-white scale-110" : "bg-white/15 text-white hover:bg-white/25"}`}
+      >
         {icon}
       </div>
       <span className="text-[10px] font-semibold text-white">{label}</span>

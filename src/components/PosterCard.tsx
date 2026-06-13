@@ -23,7 +23,9 @@ export function PosterCard({ t, width = 168 }: { t: Title; width?: number }) {
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">No image</div>
+          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+            No image
+          </div>
         )}
         {t.vote_average > 0 && (
           <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-[11px] font-semibold backdrop-blur">

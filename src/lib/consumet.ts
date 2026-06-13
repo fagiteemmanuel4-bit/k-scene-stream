@@ -1,5 +1,6 @@
-// Direct streaming API integration
-// Priority order: vidsrc.xyz → 2embed → vidsrc.to → embedder.to
+// Direct streaming API integration with Xyra.stream
+// Core Base Route: https://xyra.stream
+// URL format: https://xyra.stream/stream?api_key=freekey&episode_id=[EPISODE_ID]
 
 export type StreamSource = {
   url: string;
@@ -17,39 +18,54 @@ export type StreamResult = {
   headers?: Record<string, string>;
 };
 
-// ── Direct embed sources (proven to work without key) ──────────────────────
+const BASE_URL = "https://xyra.stream";
+const API_KEY = "freekey";
 
-function buildMovieSources(tmdbId: number): StreamSource[] {
-  return [
-    { url: `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc XYZ" },
-    { url: `https://vidsrc.to/embed/movie/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc" },
-    { url: `https://2embed.cc/embed/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "2Embed" },
-    { url: `https://player.autoembed.cc/embed/movie/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "AutoEmbed" },
-    { url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`, quality: "HD", isM3U8: false, isEmbed: true, label: "MultiEmbed" },
-    { url: `https://moviesapi.club/movie/${tmdbId}`, quality: "HD", isM3U8: false, isEmbed: true, label: "MoviesAPI" },
-  ];
-}
+async function fetchStream(episodeId: string | number): Promise<StreamResult> {
+  console.log(`[Streaming] Fetching data for episode_id: ${episodeId}`);
+  try {
+    const response = await fetch(`${BASE_URL}/stream?api_key=${API_KEY}&episode_id=${episodeId}`);
+    if (!response.ok) {
+      throw new Error(`Xyra API error: ${response.status} ${response.statusText}`);
+    }
+    const data = await response.json();
 
-function buildTVSources(tmdbId: number, season: number, episode: number): StreamSource[] {
-  return [
-    { url: `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc XYZ" },
-    { url: `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "VidSrc" },
-    { url: `https://2embed.cc/embed/tv/${tmdbId}/${season}/${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "2Embed" },
-    { url: `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "AutoEmbed" },
-    { url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "MultiEmbed" },
-    { url: `https://moviesapi.club/tv/${tmdbId}-${season}-${episode}`, quality: "HD", isM3U8: false, isEmbed: true, label: "MoviesAPI" },
-  ];
+    // Parse the dynamic JSON payload structure
+    // Expected structure: { sources: [{ url, quality }], subtitles: [{ url, lang }] }
+
+    return {
+      sources: (data.sources || []).map((s: { url: string; quality?: string }) => ({
+        url: s.url,
+        quality: s.quality || "HD",
+        isM3U8: s.url.includes(".m3u8"),
+        label: s.quality || "Default",
+      })),
+      subtitles: (data.subtitles || []).map(
+        (sub: { url: string; lang?: string; language?: string }) => ({
+          url: sub.url,
+          lang: sub.lang || sub.language || "Unknown",
+        }),
+      ),
+      headers: data.headers,
+    };
+  } catch (error) {
+    console.error("[Streaming] Error fetching stream data:", error);
+    return { sources: [], subtitles: [] };
+  }
 }
 
 export async function getMovieStream(tmdbId: number): Promise<StreamResult> {
-  return { sources: buildMovieSources(tmdbId), subtitles: [] };
+  // For movies, we use the TMDB ID as the episode_id
+  return fetchStream(tmdbId);
 }
 
 export async function getEpisodeStream(
   tmdbId: number,
   season: number,
   episode: number,
-  _title: string
+  _title: string,
 ): Promise<StreamResult> {
-  return { sources: buildTVSources(tmdbId, season, episode), subtitles: [] };
+  // For TV episodes, we use the format tmdbId-season-episode
+  const episodeId = `${tmdbId}-${season}-${episode}`;
+  return fetchStream(episodeId);
 }

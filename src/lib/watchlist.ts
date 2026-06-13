@@ -6,7 +6,11 @@ type Entry = { id: number; name: string; poster_path: string | null; vote_averag
 
 function read(): Entry[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(KEY) || "[]");
+  } catch {
+    return [];
+  }
 }
 function write(v: Entry[]) {
   localStorage.setItem(KEY, JSON.stringify(v));

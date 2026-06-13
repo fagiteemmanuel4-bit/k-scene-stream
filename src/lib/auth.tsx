@@ -35,7 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await firebaseSignUp(email, password, name);
       return { error: null };
     } catch (e: any) {
-      return { error: e.message?.replace("Firebase: ", "").replace(/\(auth\/.*?\)\.?/, "").trim() || "Sign up failed" };
+      return {
+        error:
+          e.message
+            ?.replace("Firebase: ", "")
+            .replace(/\(auth\/.*?\)\.?/, "")
+            .trim() || "Sign up failed",
+      };
     }
   };
 
@@ -44,17 +50,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await firebaseSignIn(email, password);
       return { error: null };
     } catch (e: any) {
-      return { error: e.message?.replace("Firebase: ", "").replace(/\(auth\/.*?\)\.?/, "").trim() || "Login failed" };
+      return {
+        error:
+          e.message
+            ?.replace("Firebase: ", "")
+            .replace(/\(auth\/.*?\)\.?/, "")
+            .trim() || "Login failed",
+      };
     }
   };
 
-  const signOut = async () => { await firebaseSignOut(); };
+  const signOut = async () => {
+    await firebaseSignOut();
+  };
 
-  return (
-    <Ctx.Provider value={{ user, loading, signUp, signIn, signOut }}>
-      {children}
-    </Ctx.Provider>
-  );
+  return <Ctx.Provider value={{ user, loading, signUp, signIn, signOut }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {
