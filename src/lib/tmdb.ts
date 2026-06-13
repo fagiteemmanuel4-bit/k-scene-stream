@@ -38,26 +38,38 @@ const KDRAMA_DISCOVER = {
 };
 
 export const getTrendingKDrama = () =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, sort_by: "popularity.desc", page: 1 })
-    .then((d) => d.results);
+  tmdb<{ results: Title[] }>("/discover/tv", {
+    ...KDRAMA_DISCOVER,
+    sort_by: "popularity.desc",
+    page: 1,
+  }).then((d) => d.results);
 
 export const getPopularKDrama = (page = 2) =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) => d.results);
 
 export const getTopRatedKDrama = () =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, sort_by: "vote_average.desc", "vote_count.gte": 200 })
-    .then((d) => d.results);
+  tmdb<{ results: Title[] }>("/discover/tv", {
+    ...KDRAMA_DISCOVER,
+    sort_by: "vote_average.desc",
+    "vote_count.gte": 200,
+  }).then((d) => d.results);
 
 export const getRecentKDrama = () =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, sort_by: "first_air_date.desc", "first_air_date.lte": new Date().toISOString().slice(0, 10) })
-    .then((d) => d.results);
+  tmdb<{ results: Title[] }>("/discover/tv", {
+    ...KDRAMA_DISCOVER,
+    sort_by: "first_air_date.desc",
+    "first_air_date.lte": new Date().toISOString().slice(0, 10),
+  }).then((d) => d.results);
 
 export const getByGenre = (genreId: number, page = 1) =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, with_genres: genreId, page }).then((d) => d.results);
+  tmdb<{ results: Title[] }>("/discover/tv", {
+    ...KDRAMA_DISCOVER,
+    with_genres: genreId,
+    page,
+  }).then((d) => d.results);
 
 export const getByPage = (page: number) =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) => d.results);
-
 
 export const GENRES = {
   romance: 10749,
@@ -69,10 +81,14 @@ export const GENRES = {
 };
 
 export const getHistoricalKDrama = () =>
-  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, with_keywords: "6075" }).then((d) => d.results);
+  tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, with_keywords: "6075" }).then(
+    (d) => d.results,
+  );
 
 export const searchMulti = (q: string) =>
-  tmdb<{ results: Title[] }>("/search/tv", { query: q, with_original_language: "ko" }).then((d) => d.results);
+  tmdb<{ results: Title[] }>("/search/tv", { query: q, with_original_language: "ko" }).then(
+    (d) => d.results,
+  );
 
 export type TitleDetail = Title & {
   genres: { id: number; name: string }[];
@@ -81,7 +97,13 @@ export type TitleDetail = Title & {
   episode_run_time?: number[];
   tagline?: string;
   status?: string;
-  seasons?: { id: number; season_number: number; name: string; episode_count: number; poster_path: string | null }[];
+  seasons?: {
+    id: number;
+    season_number: number;
+    name: string;
+    episode_count: number;
+    poster_path: string | null;
+  }[];
 };
 
 export const getDetail = (id: number) =>

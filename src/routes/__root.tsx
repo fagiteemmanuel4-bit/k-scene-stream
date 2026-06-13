@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { BottomNav } from "../components/BottomNav";
 import { AuthProvider } from "../lib/auth";
 import { StreakOverlay } from "../components/StreakOverlay";
+import { CelebrityPopup } from "../components/CelebrityPopup";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
@@ -12,7 +13,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       <div className="text-center">
         <h1 className="text-7xl font-black text-primary">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-gray-800">Scene not found</h2>
-        <a href="/" className="mt-6 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white">
+        <a
+          href="/"
+          className="mt-6 inline-flex rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white"
+        >
           Go home
         </a>
       </div>
@@ -36,6 +40,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <StreakOverlay />
+        <CelebrityPopup />
         <main className="min-h-screen bg-gray-50 pb-20">
           <Outlet />
         </main>

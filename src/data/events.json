@@ -1,0 +1,16 @@
+[
+  {
+    "id": "event-1",
+    "name": "Lee Min-ho Celebration",
+    "date": "06-13",
+    "image": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=1000",
+    "message": "Today we celebrate the legendary Lee Min-ho! Join the K-Scene community in honoring his amazing career."
+  },
+  {
+    "id": "event-2",
+    "name": "Park Shin-hye Event",
+    "date": "02-18",
+    "image": "https://images.unsplash.com/photo-1554151228-14d9def656e4?auto=format&fit=crop&q=80&w=1000",
+    "message": "A special day for Park Shin-hye fans! Don't miss our exclusive marathon."
+  }
+]

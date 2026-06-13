@@ -12,5 +12,5 @@ if (!rootEl) throw new Error("No #root element found");
 ReactDOM.createRoot(rootEl).render(
   <StrictMode>
     <RouterProvider router={router} />
-  </StrictMode>
+  </StrictMode>,
 );

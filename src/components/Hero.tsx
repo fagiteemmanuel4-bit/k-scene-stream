@@ -5,7 +5,11 @@ import { Play, Info, Star } from "lucide-react";
 import { getTrendingKDrama, img } from "@/lib/tmdb";
 
 export function Hero() {
-  const { data } = useQuery({ queryKey: ["trending-kdrama"], queryFn: getTrendingKDrama, staleTime: 5 * 60_000 });
+  const { data } = useQuery({
+    queryKey: ["trending-kdrama"],
+    queryFn: getTrendingKDrama,
+    staleTime: 5 * 60_000,
+  });
   const items = (data || []).filter((t) => t.backdrop_path).slice(0, 5);
   const [idx, setIdx] = useState(0);
 
