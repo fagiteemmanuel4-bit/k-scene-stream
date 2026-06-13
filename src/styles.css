@@ -123,3 +123,66 @@
 .shadow-card { box-shadow: 0 2px 12px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12); }
 .shadow-lift { box-shadow: 0 8px 30px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.18); }
 .shadow-hero { box-shadow: 0 20px 60px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.25); }
+
+/* ── K·Scene Global Overrides ── */
+
+/* Light-only: kill all dark mode overrides */
+html { color-scheme: light; }
+
+/* Disable zoom on double-tap but keep pinch-to-zoom in video */
+* { touch-action: pan-x pan-y; }
+video, iframe { touch-action: auto; }
+
+/* Disable text selection on UI elements */
+button, a, nav { user-select: none; }
+
+/* Disable auto-rotate for everything except video */
+@media (orientation: landscape) and (max-width: 768px) {
+  body:not(.in-player) {
+    /* Lock to portrait via CSS hint — actual lock needs manifest */
+    overflow: hidden;
+  }
+}
+
+/* PWA safe areas */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Smooth global scrolling */
+html { scroll-behavior: smooth; }
+
+/* Bottom nav safe area */
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px); }
+
+/* Hide scrollbar utility */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Snap scroll utilities */
+.snap-y { scroll-snap-type: y mandatory; }
+.snap-start { scroll-snap-align: start; }
+.snap-always { scroll-snap-stop: always; }
+
+/* Shadow tokens */
+.shadow-card { box-shadow: 0 2px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06); }
+.shadow-lift { box-shadow: 0 8px 30px rgba(232,80,58,.18), 0 2px 8px rgba(0,0,0,.08); }
+.shadow-hero { box-shadow: 0 20px 60px rgba(0,0,0,.25), 0 4px 16px rgba(0,0,0,.12); }
+
+/* Streak animation */
+@keyframes streakIn {
+  from { opacity: 0; transform: scale(0.3) translateY(60px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0);    }
+}
+@keyframes streakOut {
+  from { opacity: 1; transform: scale(1)   translateY(0);     }
+  to   { opacity: 0; transform: scale(0.8) translateY(-40px); }
+}
+
+/* Episode card hover */
+.episode-card { transition: transform .15s ease, box-shadow .15s ease; }
+.episode-card:hover { transform: translateY(-2px); }
+
+/* Player sticky */
+.player-sticky { position: sticky; top: 0; z-index: 30; }

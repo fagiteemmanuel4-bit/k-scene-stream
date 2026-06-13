@@ -7,7 +7,11 @@ import path from "path";
 
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({ routesDirectory: "src/routes", generatedRouteTree: "src/routeTree.gen.ts" }),
+    TanStackRouterVite({
+      routesDirectory: "src/routes",
+      generatedRouteTree: "src/routeTree.gen.ts",
+      autoCodeSplitting: true,
+    }),
     react(),
     tailwindcss(),
     tsconfigPaths(),
@@ -17,18 +21,9 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom"],
-          "vendor-router": ["@tanstack/react-router", "@tanstack/react-query"],
-          "vendor-player": ["artplayer", "hls.js"],
-          "vendor-firebase": ["firebase/app", "firebase/auth", "firebase/firestore"],
-        },
-      },
-    },
   },
   optimizeDeps: {
     include: ["react", "react-dom", "@tanstack/react-router", "@tanstack/react-query"],
+    exclude: ["artplayer", "hls.js"],
   },
 });
