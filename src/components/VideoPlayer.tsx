@@ -4,7 +4,7 @@ import type { StreamResult, StreamSource } from "@/lib/consumet";
 import {
   Play, Pause, Volume2, VolumeX, Maximize, Minimize,
   Download, SkipForward, SkipBack, Settings, Loader2,
-  AlertCircle, RefreshCw, Subtitles,
+  AlertCircle, RefreshCw, Subtitles, ChevronRight,
 } from "lucide-react";
 
 type Props = {
@@ -16,8 +16,7 @@ type Props = {
 
 function fmtTime(s: number) {
   if (!isFinite(s) || s < 0) return "0:00";
-  const m = Math.floor(s / 60);
-  return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+  return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
 }
 
 export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) {
@@ -27,6 +26,7 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
   const hideTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const [activeSrc, setActiveSrc] = useState<StreamSource | null>(streamResult.sources[0] ?? null);
+  const [activeEmbed, setActiveEmbed] = useState(streamResult.fallbackEmbeds[0] ?? null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -42,14 +42,14 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
   const [hlsLevels, setHlsLevels] = useState<{ height: number; index: number }[]>([]);
   const [activeLevel, setActiveLevel] = useState(-1);
 
-  // Load source
+  const hasDirect = streamResult.sources.length > 0;
+
+  // ── Load HLS/MP4 into native video ────────────────────────────────────────
   useEffect(() => {
+    if (!hasDirect) return;
     const video = videoRef.current;
     if (!video || !activeSrc) return;
-    setError(null);
-    setBuffering(true);
-    setPlaying(false);
-    setHlsLevels([]);
+    setError(null); setBuffering(true); setPlaying(false); setHlsLevels([]);
     if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
 
     if (activeSrc.isM3U8 && Hls.isSupported()) {
@@ -80,14 +80,15 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
       video.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       setBuffering(false);
     }
-
     return () => { if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; } };
-  }, [activeSrc]);
+  }, [activeSrc, hasDirect]);
 
-  // Video events
+  // ── Video events ──────────────────────────────────────────────────────────
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
+    const on = (e: string, fn: () => void) => v.addEventListener(e, fn);
+    const off = (e: string, fn: () => void) => v.removeEventListener(e, fn);
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
     const onTime = () => setCurrentTime(v.currentTime);
@@ -95,16 +96,14 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
     const onWait = () => setBuffering(true);
     const onCan = () => setBuffering(false);
     const onVol = () => { setVolume(v.volume); setMuted(v.muted); };
-    const onErr = () => setError("Playback error — try another source.");
-    v.addEventListener("play", onPlay); v.addEventListener("pause", onPause);
-    v.addEventListener("timeupdate", onTime); v.addEventListener("durationchange", onDur);
-    v.addEventListener("waiting", onWait); v.addEventListener("canplay", onCan);
-    v.addEventListener("volumechange", onVol); v.addEventListener("error", onErr);
+    const onErr = () => setError("Playback error — try another source or mirror.");
+    on("play", onPlay); on("pause", onPause); on("timeupdate", onTime);
+    on("durationchange", onDur); on("waiting", onWait); on("canplay", onCan);
+    on("volumechange", onVol); on("error", onErr);
     return () => {
-      v.removeEventListener("play", onPlay); v.removeEventListener("pause", onPause);
-      v.removeEventListener("timeupdate", onTime); v.removeEventListener("durationchange", onDur);
-      v.removeEventListener("waiting", onWait); v.removeEventListener("canplay", onCan);
-      v.removeEventListener("volumechange", onVol); v.removeEventListener("error", onErr);
+      off("play", onPlay); off("pause", onPause); off("timeupdate", onTime);
+      off("durationchange", onDur); off("waiting", onWait); off("canplay", onCan);
+      off("volumechange", onVol); off("error", onErr);
     };
   }, []);
 
@@ -117,8 +116,8 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
   const resetHide = useCallback(() => {
     setShowControls(true);
     clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => { if (playing) setShowControls(false); }, 3000);
-  }, [playing]);
+    hideTimer.current = setTimeout(() => setShowControls(false), 3000);
+  }, []);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -145,35 +144,52 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // No direct sources — show embed fallback
-  if (!streamResult.sources.length) {
+  // ── EMBED FALLBACK MODE ───────────────────────────────────────────────────
+  if (!hasDirect) {
     return (
       <div className="flex flex-col bg-black">
-        <div className="relative w-full" style={{ aspectRatio: "16/9" }}>
-          {streamResult.fallbackEmbed ? (
-            <>
-              <iframe
-                src={streamResult.fallbackEmbed}
-                className="absolute inset-0 h-full w-full border-0"
-                allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                title={title}
-              />
-              <div className="pointer-events-none absolute top-2 left-2 rounded-full bg-orange-500/90 px-2.5 py-1 text-[10px] font-bold text-white">
-                Embed mode
-              </div>
-            </>
+        <div className="relative w-full bg-black" style={{ aspectRatio: "16/9" }}>
+          {activeEmbed ? (
+            <iframe
+              key={activeEmbed.url}
+              src={activeEmbed.url}
+              className="absolute inset-0 h-full w-full border-0"
+              allowFullScreen
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              title={title}
+            />
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
               <AlertCircle className="h-8 w-8 text-red-400" />
-              <p className="text-sm font-semibold">No sources available</p>
+              <p className="text-sm font-semibold">All sources unavailable</p>
             </div>
           )}
         </div>
+
+        {/* Mirror switcher for embed mode */}
+        {streamResult.fallbackEmbeds.length > 1 && (
+          <div className="flex items-center gap-2 overflow-x-auto bg-gray-950 px-3 py-2 scrollbar-hide">
+            <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-gray-500">Mirror:</span>
+            {streamResult.fallbackEmbeds.map((embed, i) => (
+              <button
+                key={i}
+                onClick={() => setActiveEmbed(embed)}
+                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition ${
+                  activeEmbed?.url === embed.url
+                    ? "bg-primary text-white"
+                    : "bg-white/10 text-white/60 hover:bg-white/20"
+                }`}
+              >
+                {embed.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
+  // ── NATIVE PLAYER MODE ────────────────────────────────────────────────────
   return (
     <div
       ref={containerRef}
@@ -193,34 +209,51 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
         {activeSub && <track kind="subtitles" src={activeSub} default />}
       </video>
 
-      {buffering && (
+      {/* Buffering */}
+      {buffering && !error && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </div>
       )}
 
+      {/* Error */}
       {error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/85 text-white" onClick={e => e.stopPropagation()}>
           <AlertCircle className="h-8 w-8 text-red-400" />
-          <p className="text-sm font-semibold">{error}</p>
-          <button
-            onClick={e => { e.stopPropagation(); setError(null); if (activeSrc) setActiveSrc({ ...activeSrc }); }}
-            className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold"
-          >
-            <RefreshCw className="h-4 w-4" /> Retry
-          </button>
+          <p className="px-6 text-center text-sm font-semibold">{error}</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setError(null); if (activeSrc) setActiveSrc({ ...activeSrc }); }}
+              className="flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold"
+            >
+              <RefreshCw className="h-4 w-4" /> Retry
+            </button>
+            {streamResult.fallbackEmbeds[0] && (
+              <button
+                onClick={() => { /* switch to embed mode by clearing sources */
+                  setError(null);
+                  // force embed mode — set sources to empty via a hack: swap to embed view
+                  window.location.hash = "#embed";
+                }}
+                className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold"
+              >
+                Use Mirror <ChevronRight className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Controls */}
+      {/* Controls overlay */}
       <div
         className={`absolute inset-0 flex flex-col justify-end transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={e => e.stopPropagation()}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent pointer-events-none" />
 
+        {/* Title */}
         <div className="relative px-4 pb-1">
-          <p className="text-[11px] font-semibold text-white/60 line-clamp-1">{title}</p>
+          <p className="truncate text-[11px] font-semibold text-white/50">{title}</p>
         </div>
 
         {/* Seek bar */}
@@ -233,7 +266,7 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
           />
         </div>
 
-        {/* Bottom row */}
+        {/* Controls row */}
         <div className="relative flex items-center gap-1 px-3 pb-4">
           <button onClick={togglePlay} className="p-1.5 text-white hover:text-primary transition">
             {playing ? <Pause className="h-6 w-6 fill-current" /> : <Play className="h-6 w-6 fill-current" />}
@@ -244,13 +277,12 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
           <button onClick={() => seek(10)} className="p-1.5 text-white/70 hover:text-white transition">
             <SkipForward className="h-5 w-5" />
           </button>
-          <span className="text-[11px] font-mono text-white/60 tabular-nums">
+          <span className="text-[11px] font-mono text-white/50 tabular-nums">
             {fmtTime(currentTime)} / {fmtTime(duration)}
           </span>
 
           <div className="flex-1" />
 
-          {/* Volume */}
           <button onClick={() => { const v = videoRef.current; if (v) v.muted = !v.muted; }} className="p-1.5 text-white/70 hover:text-white transition">
             {muted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
           </button>
@@ -262,27 +294,27 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
           />
 
           {streamResult.subtitles.length > 0 && (
-            <button onClick={() => setShowSubs(s => !s)} className={`p-1.5 transition ${showSubs ? "text-primary" : "text-white/70 hover:text-white"}`}>
+            <button onClick={() => { setShowSubs(s => !s); setShowSettings(false); }} className={`p-1.5 transition ${showSubs ? "text-primary" : "text-white/70 hover:text-white"}`}>
               <Subtitles className="h-5 w-5" />
             </button>
           )}
-
-          <button onClick={() => setShowSettings(s => !s)} className={`p-1.5 transition ${showSettings ? "text-primary" : "text-white/70 hover:text-white"}`}>
+          <button onClick={() => { setShowSettings(s => !s); setShowSubs(false); }} className={`p-1.5 transition ${showSettings ? "text-primary" : "text-white/70 hover:text-white"}`}>
             <Settings className="h-5 w-5" />
           </button>
-
           <button onClick={handleDownload} className="p-1.5 text-white/70 hover:text-primary transition">
             <Download className="h-5 w-5" />
           </button>
-
-          <button onClick={() => { const el = containerRef.current; if (!el) return; document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }} className="p-1.5 text-white/70 hover:text-white transition">
+          <button
+            onClick={() => { const el = containerRef.current; if (!el) return; document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen(); }}
+            className="p-1.5 text-white/70 hover:text-white transition"
+          >
             {fullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
           </button>
         </div>
 
         {/* Settings panel */}
         {showSettings && (
-          <div className="absolute bottom-16 right-3 w-52 rounded-2xl border border-white/10 bg-gray-950/95 p-3 text-xs text-white backdrop-blur" onClick={e => e.stopPropagation()}>
+          <div className="absolute bottom-16 right-3 w-56 rounded-2xl border border-white/10 bg-gray-950/95 p-3 text-xs text-white backdrop-blur" onClick={e => e.stopPropagation()}>
             {hlsLevels.length > 0 && (
               <div className="mb-3">
                 <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">Quality</p>
@@ -295,13 +327,25 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
               </div>
             )}
             {streamResult.sources.length > 1 && (
-              <div>
+              <div className="mb-3">
                 <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">Source</p>
                 {streamResult.sources.map((src, i) => (
                   <button key={i} onClick={() => { setActiveSrc(src); setShowSettings(false); }}
                     className={`mb-1 w-full rounded-xl px-3 py-1.5 text-left font-semibold transition ${activeSrc?.url === src.url ? "bg-primary text-white" : "hover:bg-white/10"}`}>
                     {src.label}
                   </button>
+                ))}
+              </div>
+            )}
+            {/* Embed mirrors as last resort */}
+            {streamResult.fallbackEmbeds.length > 0 && (
+              <div>
+                <p className="mb-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400">Embed Mirrors</p>
+                {streamResult.fallbackEmbeds.slice(0, 3).map((embed, i) => (
+                  <a key={i} href={embed.url} target="_blank" rel="noreferrer"
+                    className="mb-1 flex w-full items-center justify-between rounded-xl px-3 py-1.5 font-semibold hover:bg-white/10 transition">
+                    {embed.label} <ChevronRight className="h-3 w-3 opacity-50" />
+                  </a>
                 ))}
               </div>
             )}

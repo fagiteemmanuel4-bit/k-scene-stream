@@ -1,5 +1,5 @@
-// Native HLS streaming — fetches direct .m3u8 / .mp4 from CORS-enabled public APIs
-// No iframe needed. Sources fed directly into hls.js native player.
+// Native HLS streaming — fetches direct .m3u8/.mp4 from CORS-enabled public APIs
+// Falls back to working embed mirrors if all direct sources fail.
 
 export type StreamSource = {
   url: string;
@@ -13,14 +13,13 @@ export type SubtitleTrack = { url: string; lang: string };
 export type StreamResult = {
   sources: StreamSource[];
   subtitles: SubtitleTrack[];
-  fallbackEmbed?: string;
+  fallbackEmbeds: { url: string; label: string }[]; // ordered list of embed mirrors
 };
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
 function isM3U8(url: string) { return url.includes(".m3u8"); }
-function isMp4(url: string) { return url.includes(".mp4"); }
-function isDirect(url: string) { return isM3U8(url) || isMp4(url); }
+function isDirect(url: string) { return url.includes(".m3u8") || url.includes(".mp4"); }
 
 async function tryFetch(url: string, referer: string): Promise<any | null> {
   try {
@@ -35,6 +34,8 @@ async function tryFetch(url: string, referer: string): Promise<any | null> {
   } catch { return null; }
 }
 
+// ── Direct source extractors ─────────────────────────────────────────────────
+
 async function fromAutoembed(tmdbId: number, s: number, e: number): Promise<StreamResult | null> {
   const data = await tryFetch(
     `https://player.autoembed.cc/api/source/tv/${tmdbId}/${s}/${e}`,
@@ -48,7 +49,7 @@ async function fromAutoembed(tmdbId: number, s: number, e: number): Promise<Stre
   const subtitles: SubtitleTrack[] = (data.tracks || [])
     .filter((t: any) => t.kind === "captions" && t.file)
     .map((t: any) => ({ url: t.file, lang: t.label || "English" }));
-  return { sources, subtitles };
+  return { sources, subtitles, fallbackEmbeds: [] };
 }
 
 async function fromEmbedSu(tmdbId: number, s: number, e: number): Promise<StreamResult | null> {
@@ -64,19 +65,7 @@ async function fromEmbedSu(tmdbId: number, s: number, e: number): Promise<Stream
   const subtitles: SubtitleTrack[] = (data.tracks || [])
     .filter((t: any) => t.kind === "captions" && t.file)
     .map((t: any) => ({ url: t.file, lang: t.label || "English" }));
-  return { sources, subtitles };
-}
-
-async function fromVidSrcXyz(tmdbId: number, s: number, e: number): Promise<StreamResult | null> {
-  const data = await tryFetch(
-    `https://vidsrc.xyz/api/source?i=${tmdbId}&s=${s}&e=${e}`,
-    "https://vidsrc.xyz/"
-  );
-  if (!data?.source?.length) return null;
-  const sources: StreamSource[] = data.source
-    .filter((x: any) => x.file && isDirect(x.file))
-    .map((x: any) => ({ url: x.file, quality: x.label || "HD", isM3U8: isM3U8(x.file), label: `VidSrc ${x.label || "HD"}` }));
-  return sources.length ? { sources, subtitles: [] } : null;
+  return { sources, subtitles, fallbackEmbeds: [] };
 }
 
 async function fromSmashy(tmdbId: number, s: number, e: number): Promise<StreamResult | null> {
@@ -87,7 +76,7 @@ async function fromSmashy(tmdbId: number, s: number, e: number): Promise<StreamR
   if (!data?.source) return null;
   const src = typeof data.source === "string" ? data.source : data.source?.[0]?.file;
   if (!src || !isDirect(src)) return null;
-  return { sources: [{ url: src, quality: "HD", isM3U8: isM3U8(src), label: "Smashy HD" }], subtitles: [] };
+  return { sources: [{ url: src, quality: "HD", isM3U8: isM3U8(src), label: "Smashy HD" }], subtitles: [], fallbackEmbeds: [] };
 }
 
 async function from2Embed(tmdbId: number, s: number, e: number): Promise<StreamResult | null> {
@@ -99,8 +88,34 @@ async function from2Embed(tmdbId: number, s: number, e: number): Promise<StreamR
   const sources: StreamSource[] = data.data
     .filter((x: any) => x.file && isDirect(x.file))
     .map((x: any) => ({ url: x.file, quality: x.label || "HD", isM3U8: isM3U8(x.file), label: `2Embed ${x.label || ""}`.trim() }));
-  return sources.length ? { sources, subtitles: [] } : null;
+  return sources.length ? { sources, subtitles: [], fallbackEmbeds: [] } : null;
 }
+
+// ── Verified working embed fallbacks (no dead domains) ───────────────────────
+
+function getTVEmbeds(tmdbId: number, season: number, episode: number) {
+  return [
+    { url: `https://vidsrc.to/embed/tv/${tmdbId}/${season}/${episode}`, label: "VidSrc" },
+    { url: `https://vidsrc.me/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`, label: "VidSrc Me" },
+    { url: `https://2embed.cc/embedtvfull/${tmdbId}&s=${season}&e=${episode}`, label: "2Embed" },
+    { url: `https://player.autoembed.cc/embed/tv/${tmdbId}/${season}/${episode}`, label: "AutoEmbed" },
+    { url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1&s=${season}&e=${episode}`, label: "MultiEmbed" },
+    { url: `https://embed.su/embed/tv/${tmdbId}/${season}/${episode}`, label: "EmbedSu" },
+  ];
+}
+
+function getMovieEmbeds(tmdbId: number) {
+  return [
+    { url: `https://vidsrc.to/embed/movie/${tmdbId}`, label: "VidSrc" },
+    { url: `https://vidsrc.me/embed/movie?tmdb=${tmdbId}`, label: "VidSrc Me" },
+    { url: `https://2embed.cc/embed/${tmdbId}`, label: "2Embed" },
+    { url: `https://player.autoembed.cc/embed/movie/${tmdbId}`, label: "AutoEmbed" },
+    { url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1`, label: "MultiEmbed" },
+    { url: `https://embed.su/embed/movie/${tmdbId}`, label: "EmbedSu" },
+  ];
+}
+
+// ── Main exports ─────────────────────────────────────────────────────────────
 
 export async function getEpisodeStream(
   tmdbId: number, season: number, episode: number, _title: string
@@ -108,7 +123,6 @@ export async function getEpisodeStream(
   const results = await Promise.allSettled([
     fromAutoembed(tmdbId, season, episode),
     fromEmbedSu(tmdbId, season, episode),
-    fromVidSrcXyz(tmdbId, season, episode),
     fromSmashy(tmdbId, season, episode),
     from2Embed(tmdbId, season, episode),
   ]);
@@ -125,17 +139,15 @@ export async function getEpisodeStream(
   const seen = new Set<string>();
   const unique = allSources.filter(s => { if (seen.has(s.url)) return false; seen.add(s.url); return true; });
 
+  const embeds = getTVEmbeds(tmdbId, season, episode);
+
   if (unique.length > 0) {
-    console.log(`[K·Scene] ✅ Got ${unique.length} direct stream source(s)`);
-    return { sources: unique, subtitles: allSubs };
+    console.log(`[K·Scene] ✅ ${unique.length} direct source(s) found`);
+    return { sources: unique, subtitles: allSubs, fallbackEmbeds: embeds };
   }
 
-  console.warn("[K·Scene] ⚠️ No direct sources — embed fallback");
-  return {
-    sources: [],
-    subtitles: [],
-    fallbackEmbed: `https://vidsrc.xyz/embed/tv?tmdb=${tmdbId}&season=${season}&episode=${episode}`,
-  };
+  console.warn("[K·Scene] ⚠️ No direct sources — using embed mirrors");
+  return { sources: [], subtitles: [], fallbackEmbeds: embeds };
 }
 
 export async function getMovieStream(tmdbId: number): Promise<StreamResult> {
@@ -156,11 +168,8 @@ export async function getMovieStream(tmdbId: number): Promise<StreamResult> {
   for (const r of results) {
     if (r.status === "fulfilled" && Array.isArray(r.value)) sources.push(...r.value);
   }
-
   const seen = new Set<string>();
   const unique = sources.filter(s => { if (seen.has(s.url)) return false; seen.add(s.url); return true; });
 
-  return unique.length
-    ? { sources: unique, subtitles: [] }
-    : { sources: [], subtitles: [], fallbackEmbed: `https://vidsrc.xyz/embed/movie?tmdb=${tmdbId}` };
+  return { sources: unique, subtitles: [], fallbackEmbeds: getMovieEmbeds(tmdbId) };
 }
