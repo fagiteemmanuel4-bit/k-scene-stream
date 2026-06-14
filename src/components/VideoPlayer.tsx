@@ -144,56 +144,12 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
-  // ── EMBED FALLBACK MODE ───────────────────────────────────────────────────
-  if (!hasDirect) {
-    return (
-      <div className="flex flex-col bg-black">
-        <div className="relative w-full bg-black" style={{ aspectRatio: "16/9" }}>
-          {activeEmbed ? (
-            <iframe
-              key={activeEmbed.url}
-              src={activeEmbed.url}
-              className="absolute inset-0 h-full w-full border-0"
-              allowFullScreen
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-              title={title}
-            />
-          ) : (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white">
-              <AlertCircle className="h-8 w-8 text-red-400" />
-              <p className="text-sm font-semibold">All sources unavailable</p>
-            </div>
-          )}
-        </div>
-
-        {/* Mirror switcher for embed mode */}
-        {streamResult.fallbackEmbeds.length > 1 && (
-          <div className="flex items-center gap-2 overflow-x-auto bg-gray-950 px-3 py-2 scrollbar-hide">
-            <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-gray-500">Mirror:</span>
-            {streamResult.fallbackEmbeds.map((embed, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveEmbed(embed)}
-                className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition ${
-                  activeEmbed?.url === embed.url
-                    ? "bg-primary text-white"
-                    : "bg-white/10 text-white/60 hover:bg-white/20"
-                }`}
-              >
-                {embed.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   // ── NATIVE PLAYER MODE ────────────────────────────────────────────────────
   return (
+    <div className="flex flex-col bg-black">
     <div
       ref={containerRef}
-      className="group relative w-full select-none overflow-hidden bg-black"
+      className="group relative w-full select-none overflow-hidden"
       style={{ aspectRatio: "16/9" }}
       onMouseMove={resetHide}
       onTouchStart={resetHide}
@@ -370,6 +326,19 @@ export function VideoPlayer({ streamResult, title, poster, onDownload }: Props) 
         .kscene-seek::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#e8503a;cursor:pointer;}
         .kscene-seek::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#e8503a;cursor:pointer;border:none;}
       `}</style>
+    </div>
+
+    {/* Big Download Button requested in Step 1.3 */}
+    <div className="bg-gray-950 px-4 pb-4 pt-2">
+      <button
+        onClick={handleDownload}
+        disabled={!activeSrc}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-black text-white shadow-lg transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+      >
+        <Download className="h-5 w-5" />
+        Download Episode
+      </button>
+    </div>
     </div>
   );
 }

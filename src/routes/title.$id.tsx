@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { getEpisodeStream } from "@/lib/consumet";
 import { useWatchHistory, useDownloads } from "@/lib/userdata";
 import type { StreamResult } from "@/lib/consumet";
+import { getRawStream } from "@/lib/api/stream";
 
 export const Route = createFileRoute("/title/$id")({
   component: TitlePage,
@@ -45,9 +46,34 @@ function TitlePage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
     const title = data?.name || data?.title || "";
     try {
-      const result = await getEpisodeStream(tid, season, epNumber, title);
-      setActiveStream(result);
-    } catch {
+      // Use our internal self-hosted decryption API
+      const result = await getRawStream({
+        data: {
+          tmdbId: String(tid),
+          season,
+          episode: epNumber,
+          isTv: true,
+        },
+      });
+
+      if (result && "url" in result && result.url) {
+        setActiveStream({
+          sources: [
+            {
+              url: result.url,
+              quality: (result as any).quality || "1080p",
+              isM3U8: result.url.includes(".m3u8"),
+              label: (result as any).provider || "Native Stream",
+            },
+          ],
+          subtitles: [],
+          fallbackEmbeds: [],
+        });
+      } else {
+        setStreamError("Direct stream not found.");
+      }
+    } catch (err) {
+      console.error("Stream fetch error:", err);
       setStreamError("Could not load stream. Try another episode.");
     } finally {
       setStreamLoading(false);
