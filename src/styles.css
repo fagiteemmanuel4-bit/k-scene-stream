@@ -68,7 +68,8 @@
     border-color: var(--color-border);
     box-sizing: border-box;
   }
-  html, body {
+  html,
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -79,13 +80,21 @@
 
 /* ── Utilities ── */
 @utility scrollbar-hide {
-  &::-webkit-scrollbar { display: none; }
+  &::-webkit-scrollbar {
+    display: none;
+  }
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
 @utility row-fade-mask {
-  mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 48px), transparent);
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 24px,
+    black calc(100% - 48px),
+    transparent
+  );
 }
 
 /* ── Global non-Tailwind CSS ── */
@@ -96,7 +105,9 @@
 }
 
 /* Smooth scroll */
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+}
 
 /* PWA safe areas */
 body {
@@ -104,47 +115,82 @@ body {
 }
 
 /* Snap scroll */
-.snap-mandatory { scroll-snap-type: y mandatory; }
-.snap-start-item { scroll-snap-align: start; scroll-snap-stop: always; }
+.snap-mandatory {
+  scroll-snap-type: y mandatory;
+}
+.snap-start-item {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
 
 /* Custom shadows */
 .shadow-card {
-  box-shadow: 0 2px 12px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.06);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
 }
 .shadow-lift {
-  box-shadow: 0 8px 30px rgba(232,80,58,.15), 0 2px 8px rgba(0,0,0,.08);
+  box-shadow:
+    0 8px 30px rgba(232, 80, 58, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .shadow-hero {
-  box-shadow: 0 20px 60px rgba(0,0,0,.2), 0 4px 16px rgba(0,0,0,.1);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 /* Disable double-tap zoom on UI, allow in video/iframe */
-* { touch-action: pan-x pan-y; }
-video, iframe { touch-action: auto; }
+* {
+  touch-action: pan-x pan-y;
+}
+video,
+iframe {
+  touch-action: auto;
+}
 
 /* No text selection on nav/buttons */
-button, a, nav { user-select: none; -webkit-user-select: none; }
+button,
+a,
+nav {
+  user-select: none;
+  -webkit-user-select: none;
+}
 
 /* Streak animation */
 @keyframes streakIn {
-  from { opacity: 0; transform: scale(0.3) translateY(60px); }
-  to   { opacity: 1; transform: scale(1)   translateY(0);    }
+  from {
+    opacity: 0;
+    transform: scale(0.3) translateY(60px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 @keyframes streakOut {
-  from { opacity: 1; transform: scale(1)   translateY(0);     }
-  to   { opacity: 0; transform: scale(0.8) translateY(-40px); }
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8) translateY(-40px);
+  }
 }
 
 /* HLS player seek thumb */
 .kscene-seek::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #e8503a;
   cursor: pointer;
 }
 .kscene-seek::-moz-range-thumb {
-  width: 14px; height: 14px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #e8503a;
   cursor: pointer;
