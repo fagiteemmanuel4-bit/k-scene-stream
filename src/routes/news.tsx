@@ -1,139 +1,230 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Bookmark, Share2, Clock, Flame, TrendingUp, ArrowRight, ExternalLink } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ExternalLink, Clock, ChevronDown, ChevronUp, RefreshCw, Play } from "lucide-react";
 
 export const Route = createFileRoute("/news")({
-  head: () => ({ meta: [{ title: "K-Buzz News — K·Scene" }] }),
+  head: () => ({ meta: [{ title: "K-Drama News — K·Scene" }] }),
   component: NewsPage,
 });
 
-const API = import.meta.env.VITE_MOVIEBOX_API_URL || "";
+type Article = {
+  title: string;
+  link: string;
+  pubDate: string;
+  description: string;
+  fullContent?: string;
+  image?: string;
+  videoEmbed?: string;
+  source: string;
+  sourceColor: string;
+};
+
+const SOURCES = [
+  { name: "Soompi",      url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.soompi.com%2Ffeed&count=20",           color: "#e8503a" },
+  { name: "Koreaboo",    url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.koreaboo.com%2Ffeed%2F&count=20",       color: "#7c3aed" },
+  { name: "Allkpop",     url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.allkpop.com%2Ffeed&count=20",           color: "#0891b2" },
+  { name: "Drama Beans", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.dramabeans.com%2Ffeed%2F&count=20",     color: "#059669" },
+  { name: "KDrama Stars",url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fkdramastars.com%2Ffeed%2F&count=20",        color: "#d97706" },
+  { name: "MyDramaList", url: "https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fmydramalist.com%2Ffeed%2Fnews&count=20",    color: "#db2777" },
+];
+
+const PAGE_SIZE = 10;
+
+function stripHtml(h: string) {
+  return h.replace(/<[^>]*>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/\s+/g, " ").trim();
+}
+function extractImage(h: string): string | undefined {
+  return h.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+}
+function extractYT(h: string): string | undefined {
+  const m = h.match(/(?:youtube\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m ? `https://www.youtube.com/embed/${m[1]}` : undefined;
+}
+function timeAgo(d: string) {
+  const diff = Date.now() - new Date(d).getTime();
+  const h = Math.floor(diff / 3600000);
+  if (h < 1) return "just now";
+  if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(d).toLocaleDateString();
+}
+
+async function fetchSource(src: (typeof SOURCES)[number]): Promise<Article[]> {
+  try {
+    const res = await fetch(src.url, { signal: AbortSignal.timeout(8000) });
+    const data = await res.json();
+    if (!data.items) return [];
+    return data.items.map((item: any) => {
+      const content = item.content || item.description || "";
+      return {
+        title: stripHtml(item.title || ""),
+        link: item.link || "#",
+        pubDate: item.pubDate || "",
+        description: stripHtml(content).slice(0, 300),
+        fullContent: stripHtml(content),
+        image: item.enclosure?.link || item.thumbnail || extractImage(content),
+        videoEmbed: extractYT(content),
+        source: src.name,
+        sourceColor: src.color,
+      };
+    });
+  } catch { return []; }
+}
 
 function NewsPage() {
-  const [category, setCategory] = useState("BREAKING");
-  const { data: news, isLoading } = useQuery({
-    queryKey: ["news-feed", category],
-    queryFn: async () => {
-      const res = await fetch(`${API}/feeds`);
-      return res.json();
-    },
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState("All");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const loaderRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all(SOURCES.map(fetchSource)).then(results => {
+      const all = results.flat().sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+      setArticles(all);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = loaderRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) setVisibleCount(p => p + PAGE_SIZE);
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [articles.length]);
+
+  const filtered = activeFilter === "All" ? articles : articles.filter(a => a.source === activeFilter);
+  const visible = filtered.slice(0, visibleCount);
+  const toggleExpand = (link: string) => setExpanded(prev => {
+    const n = new Set(prev); n.has(link) ? n.delete(link) : n.add(link); return n;
   });
 
-  const categories = ["BREAKING", "ARTIST & BTS", "CELEBRITY", "CULTURE"];
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#FDFDFD] pb-32">
+    <div className="min-h-screen bg-gray-50 pb-10">
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-white/70 px-6 py-6 backdrop-blur-xl border-b border-gray-50 flex items-center justify-between">
-        <h1 className="text-3xl font-[1000] italic tracking-tighter text-gray-900 leading-none">
-          K·BUZZ
-        </h1>
-        <button className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">
-          <TrendingUp className="h-5 w-5" />
-        </button>
+      <div className="sticky top-0 z-20 border-b bg-white shadow-sm">
+        <div className="mx-auto max-w-2xl px-4 pt-4 pb-3">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h1 className="text-xl font-black text-gray-900">K·News</h1>
+              <p className="text-xs text-gray-400">{articles.length} articles · {SOURCES.length} sources</p>
+            </div>
+            {loading && <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />}
+          </div>
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+            {["All", ...SOURCES.map(s => s.name)].map(name => (
+              <button
+                key={name}
+                onClick={() => { setActiveFilter(name); setVisibleCount(PAGE_SIZE); }}
+                className="shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition"
+                style={{
+                  backgroundColor: activeFilter === name ? (SOURCES.find(s => s.name === name)?.color || "#e8503a") : "#f3f4f6",
+                  color: activeFilter === name ? "#fff" : "#6b7280",
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Category Pills */}
-      <div className="flex gap-3 overflow-x-auto px-6 py-5 scrollbar-hide">
-        {categories.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCategory(c)}
-            className={`shrink-0 rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-widest transition-all ${
-              category === c
-                ? "bg-primary text-white shadow-lift"
-                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-            }`}
-          >
-            {category === c && (
-              <Flame className="mr-2 inline-block h-3.5 w-3.5 fill-current align-middle" />
-            )}
-            {c}
-          </button>
-        ))}
-      </div>
+      <div className="mx-auto max-w-2xl space-y-4 px-4 pt-5">
+        {loading && visible.length === 0
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-2xl bg-white p-4 shadow-card">
+                <div className="mb-3 h-40 w-full animate-pulse rounded-xl bg-gray-200" />
+                <div className="mb-2 h-4 w-3/4 animate-pulse rounded bg-gray-200" />
+                <div className="h-3 w-full animate-pulse rounded bg-gray-100" />
+              </div>
+            ))
+          : visible.length === 0
+          ? <div className="mt-20 text-center"><p className="text-4xl">📰</p><p className="mt-3 font-semibold text-gray-700">No articles found</p></div>
+          : visible.map((article, i) => (
+              <ArticleCard
+                key={article.link + i}
+                article={article}
+                featured={i === 0 && activeFilter === "All"}
+                expanded={expanded.has(article.link)}
+                onToggle={() => toggleExpand(article.link)}
+              />
+            ))
+        }
 
-      <div className="space-y-10 px-6 mt-4">
-        {news?.map((item: NewsItem, i: number) => (
-          <NewsCard key={`${item.id}-${i}`} item={item} />
-        ))}
+        {/* Infinite scroll trigger */}
+        <div ref={loaderRef} className="flex h-16 items-center justify-center">
+          {visibleCount < filtered.length && (
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-interface NewsItem {
-  id: string;
-  title: string;
-  content: string;
-  source: string;
-  image?: string;
-  viewers: number;
-  timestamp: string;
-}
+function ArticleCard({ article, featured, expanded, onToggle }: {
+  article: Article; featured?: boolean; expanded: boolean; onToggle: () => void;
+}) {
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
-function NewsCard({ item }: { item: NewsItem }) {
   return (
-    <div className="group animate-in fade-in slide-in-from-bottom-10 duration-1000">
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[40px] bg-gray-100 shadow-xl border border-gray-50">
-        {item.image ? (
-          <img
-            src={item.image}
-            alt={item.title}
-            className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-primary/5 text-primary">
-            <Flame className="h-16 w-16 opacity-10" />
-          </div>
-        )}
-        <div className="absolute top-6 left-6">
-          <span className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest text-primary shadow-sm border border-white">
-            {item.source}
-          </span>
+    <div className={`overflow-hidden rounded-2xl bg-white shadow-card ${featured ? "ring-2 ring-primary/20" : ""}`}>
+      {/* Media */}
+      {article.videoEmbed && videoPlaying ? (
+        <div className="aspect-video w-full">
+          <iframe src={`${article.videoEmbed}?autoplay=1`} className="h-full w-full border-0" allow="autoplay; fullscreen" allowFullScreen title={article.title} />
         </div>
-      </div>
-
-      <div className="mt-8 px-2">
-        <div className="flex items-center gap-3 mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-          <Clock className="h-3.5 w-3.5" />
-          <span>{item.timestamp}</span>
-          <div className="h-1 w-1 rounded-full bg-gray-300" />
-          <span>{item.viewers} Views</span>
+      ) : article.image ? (
+        <div className="relative aspect-video w-full overflow-hidden bg-gray-100">
+          <img src={article.image} alt={article.title} className="h-full w-full object-cover" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          {article.videoEmbed && (
+            <button onClick={() => setVideoPlaying(true)} className="absolute inset-0 flex items-center justify-center">
+              <div className="grid h-14 w-14 place-items-center rounded-full bg-red-600/90 shadow-hero backdrop-blur">
+                <Play className="ml-0.5 h-6 w-6 fill-white text-white" />
+              </div>
+            </button>
+          )}
+          {featured && <div className="absolute top-3 left-3 rounded-full bg-primary px-2.5 py-1 text-[10px] font-black text-white">TOP STORY</div>}
+          <div className="absolute bottom-3 left-3"><SourceChip name={article.source} color={article.sourceColor} /></div>
         </div>
+      ) : null}
 
-        <h3 className="text-2xl font-black italic tracking-tighter text-gray-900 leading-tight uppercase group-hover:text-primary transition-colors">
-          {item.title}
-        </h3>
-
-        <p className="mt-4 text-sm font-medium leading-relaxed text-gray-500 line-clamp-2">
-          {item.content}
+      {/* Text */}
+      <div className="p-4">
+        {!article.image && <SourceChip name={article.source} color={article.sourceColor} />}
+        <h2 className={`font-bold leading-snug text-gray-900 ${featured ? "mt-2 text-lg" : "mt-1 text-sm"}`}>{article.title}</h2>
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-gray-400">
+          <Clock className="h-3 w-3" /> {timeAgo(article.pubDate)}
         </p>
 
-        <div className="mt-8 flex items-center justify-between">
-          <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary group-hover:translate-x-1 transition-transform">
-            Read Article <ArrowRight className="h-4 w-4" />
-          </button>
+        <div className={`mt-2 text-sm leading-relaxed text-gray-600 ${expanded ? "" : "line-clamp-3"}`}>
+          {article.fullContent || article.description}
+        </div>
 
-          <div className="flex gap-4">
-            <button className="h-10 w-10 rounded-full border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-primary/5 hover:text-primary transition-colors">
-              <Bookmark className="h-4.5 w-4.5" />
-            </button>
-            <button className="h-10 w-10 rounded-full border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-primary/5 hover:text-primary transition-colors">
-              <Share2 className="h-4.5 w-4.5" />
-            </button>
-          </div>
+        <div className="mt-3 flex items-center justify-between">
+          <button onClick={onToggle} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
+            {expanded ? <><ChevronUp className="h-3.5 w-3.5" /> Show less</> : <><ChevronDown className="h-3.5 w-3.5" /> Read more</>}
+          </button>
+          <a href={article.link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition">
+            <ExternalLink className="h-3 w-3" /> Source
+          </a>
         </div>
       </div>
     </div>
+  );
+}
+
+function SourceChip({ name, color }: { name: string; color: string }) {
+  return (
+    <span className="inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: `${color}20`, color }}>
+      {name}
+    </span>
   );
 }
