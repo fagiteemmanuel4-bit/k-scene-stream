@@ -47,7 +47,7 @@ export const getTrendingKDrama = () =>
 
 export const getPopularKDrama = (page = 2) =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) =>
-    d.results.filter((t) => t.original_language === "ko"),
+    d.results.sort((a, b) => (b.original_language === "ko" ? 1 : 0) - (a.original_language === "ko" ? 1 : 0)),
   );
 
 export const getTopRatedKDrama = () =>
@@ -66,7 +66,7 @@ export const getRecentKDrama = () =>
 
 export const searchMulti = (q: string) =>
   tmdb<{ results: Title[] }>("/search/tv", { query: q }).then((d) =>
-    d.results.filter((t) => t.original_language === "ko"),
+    d.results.sort((a, b) => (b.original_language === "ko" ? 1 : 0) - (a.original_language === "ko" ? 1 : 0)),
   );
 
 export type TitleDetail = Title & {
@@ -120,7 +120,7 @@ export const getByGenre = (genreId: number, page = 1) =>
 
 export const getByPage = (page: number) =>
   tmdb<{ results: Title[] }>("/discover/tv", { ...KDRAMA_DISCOVER, page }).then((d) =>
-    d.results.filter((t) => t.original_language === "ko"),
+    d.results.sort((a, b) => (b.original_language === "ko" ? 1 : 0) - (a.original_language === "ko" ? 1 : 0)),
   );
 
 export const getHistoricalKDrama = () =>
