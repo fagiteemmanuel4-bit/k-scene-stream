@@ -13,7 +13,7 @@ export const getRawStream = createServerFn({ method: "GET" })
       season: z.number().optional(),
       episode: z.number().optional(),
       isTv: z.boolean().default(false),
-    })
+    }),
   )
   .handler(async ({ data }) => {
     try {
@@ -21,7 +21,7 @@ export const getRawStream = createServerFn({ method: "GET" })
         data.tmdbId,
         data.isTv,
         data.season ?? 1,
-        data.episode ?? 1
+        data.episode ?? 1,
       );
       return result;
     } catch (error) {

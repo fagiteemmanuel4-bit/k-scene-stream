@@ -76,11 +76,11 @@ export class VidSrcDecryptor {
           // In this implementation, we return the first working source found.
           // For reliability in the sandbox, we return the decoded URL if it looks like a valid stream.
           if (streamUrl.includes("http")) {
-             return {
-                url: streamUrl,
-                quality: "1080p (Native)",
-                provider: sourceName,
-                timestamp: Math.floor(Date.now() / 1000)
+            return {
+              url: streamUrl,
+              quality: "1080p (Native)",
+              provider: sourceName,
+              timestamp: Math.floor(Date.now() / 1000),
             };
           }
         }
@@ -99,7 +99,7 @@ export class VidSrcDecryptor {
       url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
       quality: "HD (Fallback)",
       provider: "Mirror #1",
-      timestamp: Math.floor(Date.now() / 1000)
+      timestamp: Math.floor(Date.now() / 1000),
     };
   }
 }

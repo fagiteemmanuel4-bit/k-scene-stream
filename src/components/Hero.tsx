@@ -52,14 +52,16 @@ export function Hero() {
           {active.vote_average > 0 && (
             <div className="mb-2 flex items-center gap-1">
               <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-              <span className="text-xs font-bold text-white/90">{active.vote_average.toFixed(1)}</span>
-              <span className="text-xs text-white/40">· {(active.first_air_date || "").slice(0, 4)}</span>
+              <span className="text-xs font-bold text-white/90">
+                {active.vote_average.toFixed(1)}
+              </span>
+              <span className="text-xs text-white/40">
+                · {(active.first_air_date || "").slice(0, 4)}
+              </span>
             </div>
           )}
 
-          <h1 className="text-2xl font-black leading-tight text-white sm:text-4xl">
-            {title}
-          </h1>
+          <h1 className="text-2xl font-black leading-tight text-white sm:text-4xl">{title}</h1>
 
           <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/60">
             {active.overview}

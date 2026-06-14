@@ -6,11 +6,7 @@ import { memo } from "react";
 const PosterCardComponent = ({ t }: { t: Title }) => {
   const title = t.name || t.title || "Untitled";
   return (
-    <Link
-      to="/title/$id"
-      params={{ id: String(t.id) }}
-      className="group block"
-    >
+    <Link to="/title/$id" params={{ id: String(t.id) }} className="group block">
       <div
         className="relative overflow-hidden rounded-xl bg-gray-100 shadow-sm transition-all duration-200 group-hover:-translate-y-1 group-hover:shadow-md"
         style={{ aspectRatio: "2/3" }}
@@ -23,7 +19,9 @@ const PosterCardComponent = ({ t }: { t: Title }) => {
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gray-200 text-2xl">🎬</div>
+          <div className="flex h-full w-full items-center justify-center bg-gray-200 text-2xl">
+            🎬
+          </div>
         )}
         {t.vote_average > 0 && (
           <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur">
